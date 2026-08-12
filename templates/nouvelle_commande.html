@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Nouvelle commande</h1>
+<h1><i data-feather="plus-circle" class="icon icon-lg"></i> Nouvelle commande</h1>
 
 {% if not clients or not produits %}
 <p class="empty">
@@ -22,17 +22,21 @@
         <div class="ligne-commande">
             <select name="produit_id">
                 {% for produit in produits %}
-                <option value="{{ produit.id }}">{{ produit.nom }} — {{ "%.2f"|format(produit.prix) }} € (stock : {{ produit.stock }})</option>
+                <option value="{{ produit.id }}">{{ produit.nom }} — {{ "%.2f"|format(produit.prix) }} MAD (stock : {{ produit.stock }} m²)</option>
                 {% endfor %}
             </select>
             <input type="number" name="quantite" min="1" value="1" placeholder="Quantité">
-            <button type="button" class="btn-remove-ligne" title="Retirer cet article">✕</button>
+            <button type="button" class="btn-remove-ligne" title="Retirer cet article">
+                <i data-feather="x" class="icon"></i>
+            </button>
         </div>
     </div>
-    <button type="button" id="ajouter-ligne" class="btn-secondary">+ Ajouter un article</button>
+    <button type="button" id="ajouter-ligne" class="btn-secondary">
+        <i data-feather="plus" class="icon"></i> Ajouter un article
+    </button>
 
     <div class="actions">
-        <button type="submit">Enregistrer la commande</button>
+        <button type="submit"><i data-feather="check" class="icon"></i> Enregistrer la commande</button>
     </div>
 </form>
 
@@ -40,14 +44,20 @@
     <div class="ligne-commande">
         <select name="produit_id">
             {% for produit in produits %}
-            <option value="{{ produit.id }}">{{ produit.nom }} — {{ "%.2f"|format(produit.prix) }} € (stock : {{ produit.stock }})</option>
+            <option value="{{ produit.id }}">{{ produit.nom }} — {{ "%.2f"|format(produit.prix) }} MAD (stock : {{ produit.stock }} m²)</option>
             {% endfor %}
         </select>
         <input type="number" name="quantite" min="1" value="1" placeholder="Quantité">
-        <button type="button" class="btn-remove-ligne" title="Retirer cet article">✕</button>
+        <button type="button" class="btn-remove-ligne" title="Retirer cet article">
+            <i data-feather="x" class="icon"></i>
+        </button>
     </div>
 </template>
+{% endif %}
+{% endblock %}
 
+{% block scripts %}
+{% if clients and produits %}
 <script>
     const lignesContainer = document.getElementById("lignes");
 
@@ -55,13 +65,15 @@
         const template = document.getElementById("ligne-template");
         const clone = template.content.cloneNode(true);
         lignesContainer.appendChild(clone);
+        feather.replace();
     });
 
     lignesContainer.addEventListener("click", function (event) {
-        if (event.target.classList.contains("btn-remove-ligne")) {
+        const removeBtn = event.target.closest(".btn-remove-ligne");
+        if (removeBtn) {
             const lignes = lignesContainer.querySelectorAll(".ligne-commande");
             if (lignes.length > 1) {
-                event.target.closest(".ligne-commande").remove();
+                removeBtn.closest(".ligne-commande").remove();
             }
         }
     });

@@ -4,3 +4,5 @@ __pycache__/
 instance/
 *.db
 .claude/settings.local.json
+scratch_*.log
+scratch_pid.txt

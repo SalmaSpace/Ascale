@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Commandes</h1>
+<h1><i data-feather="shopping-bag" class="icon icon-lg"></i> Commandes</h1>
 
 {% if commandes %}
 <table>
@@ -17,10 +17,12 @@
                     {{ ligne.quantite }} × {{ ligne.produit_nom }}{% if not loop.last %}, {% endif %}
                 {% endfor %}
             </td>
-            <td data-label="Total">{{ "%.2f"|format(commande.total) }} €</td>
+            <td data-label="Total">{{ "%.2f"|format(commande.total) }} MAD</td>
             <td data-label="Actions">
                 <form method="post" action="{{ url_for('supprimer_commande', commande_id=commande.id) }}" onsubmit="return confirm('Supprimer cette commande ? Le stock sera recrédité.');">
-                    <button type="submit" class="btn-danger">Supprimer</button>
+                    <button type="submit" class="btn-danger btn-sm">
+                        <i data-feather="trash-2" class="icon icon-sm"></i> Supprimer
+                    </button>
                 </form>
             </td>
         </tr>

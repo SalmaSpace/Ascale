@@ -25,6 +25,7 @@ class Produit:
     nom: str
     prix: float
     stock: int
+    description: str = ""
 
 
 @dataclass
@@ -98,18 +99,21 @@ class Store:
     def get_produit(self, produit_id):
         return self._produits.get(produit_id)
 
-    def add_produit(self, nom, prix, stock):
-        produit = Produit(id=next(self._produit_ids), nom=nom, prix=prix, stock=stock)
+    def add_produit(self, nom, prix, stock, description=""):
+        produit = Produit(
+            id=next(self._produit_ids), nom=nom, prix=prix, stock=stock, description=description
+        )
         self._produits[produit.id] = produit
         return produit
 
-    def update_produit(self, produit_id, nom, prix, stock):
+    def update_produit(self, produit_id, nom, prix, stock, description=""):
         produit = self._produits.get(produit_id)
         if produit is None:
             return None
         produit.nom = nom
         produit.prix = prix
         produit.stock = stock
+        produit.description = description
         return produit
 
     def delete_produit(self, produit_id):
@@ -185,15 +189,64 @@ class Store:
 
 
 def seed(store: Store) -> None:
-    """Peuple le store avec des données de démonstration."""
-    c1 = store.add_client("Fatima Zahra", "fatima@example.com", "0600000001")
-    c2 = store.add_client("Youssef Amrani", "youssef@example.com", "0600000002")
-    store.add_client("Boutique Al Madina", "contact@almadina.ma", "0600000003")
+    """Peuple le store avec des données de démonstration (négoce de marbre de luxe)."""
+    c1 = store.add_client("Karim Benjelloun", "karim.benjelloun@gmail.com", "0661234567")
+    c2 = store.add_client(
+        "Atelier Zellige — Architecture & Design", "contact@atelierzellige.ma", "0522334455"
+    )
+    store.add_client("Nadia El Fassi", "nadia.elfassi@outlook.com", "0662345678")
+    store.add_client("Batico Construction", "contact@batico-construction.ma", "0522556677")
+    store.add_client("Riad Dar Yasmine", "reservation@riaddaryasmine.ma", "0524123456")
 
-    p1 = store.add_produit("Huile d'olive 1L", 65.0, 40)
-    p2 = store.add_produit("Miel artisanal 500g", 90.0, 25)
-    store.add_produit("Couscous 1kg", 18.5, 60)
-    store.add_produit("Thé vert 250g", 22.0, 15)
+    p1 = store.add_produit(
+        "Marbre Blanc de Carrare",
+        1850.0,
+        85,
+        "Italie — dalle premium pour sol, plan de travail et revêtement mural haut de gamme.",
+    )
+    store.add_produit(
+        "Marbre Noir Marquina",
+        1950.0,
+        60,
+        "Espagne — sol et plan de travail d'exception, veines blanches marquées sur fond noir.",
+    )
+    p3 = store.add_produit(
+        "Marbre Beige Crema Marfil",
+        890.0,
+        120,
+        "Espagne — sol, escalier et habillage mural, teinte beige intemporelle.",
+    )
+    p4 = store.add_produit(
+        "Onyx Blanc translucide",
+        4800.0,
+        25,
+        "Iran — revêtement mural rétroéclairé et éléments décoratifs, forte translucidité.",
+    )
+    store.add_produit(
+        "Marbre Vert Guatemala",
+        3200.0,
+        30,
+        "Inde — plan de travail et sol d'exception, veines vertes profondes.",
+    )
+    p6 = store.add_produit(
+        "Travertin Beige",
+        520.0,
+        150,
+        "Turquie — sol intérieur et extérieur, terrasse, salle de bain.",
+    )
+    store.add_produit(
+        "Marbre Rose Portugal",
+        1650.0,
+        45,
+        "Portugal — sol et habillage mural, teinte rosée délicate.",
+    )
+    store.add_produit(
+        "Granit Noir Absolu",
+        1100.0,
+        70,
+        "Inde — plan de travail cuisine, sol à fort trafic, noir intense et uniforme.",
+    )
 
-    store.creer_commande(c1.id, [(p1.id, 2), (p2.id, 1)])
-    store.creer_commande(c2.id, [(p1.id, 1)])
+    # Prix au m² (dalles/plaques), stock exprimé en m² disponibles.
+    store.creer_commande(c1.id, [(p1.id, 12), (p4.id, 4)])
+    store.creer_commande(c2.id, [(p6.id, 40), (p3.id, 20)])

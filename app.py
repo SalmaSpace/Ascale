@@ -45,7 +45,8 @@ def register_routes(app):
             flash("Merci de renseigner un nom, un prix et un stock valides.", "error")
             return redirect(url_for("produits"))
 
-        store.add_produit(nom, prix, stock)
+        description = request.form.get("description", "").strip()
+        store.add_produit(nom, prix, stock, description)
         flash(f"Produit « {nom} » ajouté.", "success")
         return redirect(url_for("produits"))
 
@@ -67,7 +68,8 @@ def register_routes(app):
                 flash("Merci de renseigner un nom, un prix et un stock valides.", "error")
                 return redirect(url_for("modifier_produit", produit_id=produit_id))
 
-            store.update_produit(produit_id, nom, prix, stock)
+            description = request.form.get("description", "").strip()
+            store.update_produit(produit_id, nom, prix, stock, description)
             flash(f"Produit « {nom} » mis à jour.", "success")
             return redirect(url_for("produits"))
 

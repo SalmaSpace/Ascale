@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Modifier le client</h1>
+<h1><i data-feather="edit-2" class="icon icon-lg"></i> Modifier le client</h1>
 
 <form method="post" action="{{ url_for('modifier_client', client_id=client.id) }}" class="card-form form-vertical">
     <label for="nom">Nom</label>
@@ -13,8 +13,8 @@
     <input type="text" id="telephone" name="telephone" value="{{ client.telephone or '' }}">
 
     <div class="actions">
-        <button type="submit">Enregistrer</button>
-        <a href="{{ url_for('clients') }}" class="btn-secondary">Annuler</a>
+        <button type="submit"><i data-feather="save" class="icon"></i> Enregistrer</button>
+        <a href="{{ url_for('clients') }}" class="btn-secondary"><i data-feather="x" class="icon"></i> Annuler</a>
     </div>
 </form>
 {% endblock %}

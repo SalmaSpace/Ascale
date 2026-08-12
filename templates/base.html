@@ -4,21 +4,42 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Ascale - Gestion des ventes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <nav class="navbar">
         <div class="navbar-top">
-            <a href="{{ url_for('index') }}" class="brand">Ascale</a>
+            <a href="{{ url_for('index') }}" class="brand">
+                <span class="brand-mark">A</span>
+                <span class="brand-text">
+                    <span class="brand-name">Ascale</span>
+                    <span class="brand-tagline">Gestion des ventes</span>
+                </span>
+            </a>
             <input type="checkbox" id="nav-toggle" class="nav-toggle">
-            <label for="nav-toggle" class="nav-burger" aria-label="Ouvrir le menu">☰</label>
+            <label for="nav-toggle" class="nav-burger" aria-label="Ouvrir le menu">
+                <i data-feather="menu" class="icon icon-lg"></i>
+            </label>
         </div>
         <div class="nav-links">
-            <a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' else '' }}">Tableau de bord</a>
-            <a href="{{ url_for('produits') }}" class="{{ 'active' if request.endpoint in ('produits', 'modifier_produit') else '' }}">Produits</a>
-            <a href="{{ url_for('clients') }}" class="{{ 'active' if request.endpoint in ('clients', 'modifier_client') else '' }}">Clients</a>
-            <a href="{{ url_for('commandes') }}" class="{{ 'active' if request.endpoint == 'commandes' else '' }}">Commandes</a>
-            <a href="{{ url_for('nouvelle_commande') }}" class="btn-nav">+ Nouvelle commande</a>
+            <a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' else '' }}">
+                <i data-feather="home" class="icon"></i> Tableau de bord
+            </a>
+            <a href="{{ url_for('produits') }}" class="{{ 'active' if request.endpoint in ('produits', 'modifier_produit') else '' }}">
+                <i data-feather="package" class="icon"></i> Produits
+            </a>
+            <a href="{{ url_for('clients') }}" class="{{ 'active' if request.endpoint in ('clients', 'modifier_client') else '' }}">
+                <i data-feather="users" class="icon"></i> Clients
+            </a>
+            <a href="{{ url_for('commandes') }}" class="{{ 'active' if request.endpoint == 'commandes' else '' }}">
+                <i data-feather="shopping-bag" class="icon"></i> Commandes
+            </a>
+            <a href="{{ url_for('nouvelle_commande') }}" class="btn-nav">
+                <i data-feather="plus-circle" class="icon"></i> Nouvelle commande
+            </a>
         </div>
     </nav>
     <main class="container">
@@ -26,12 +47,21 @@
             {% if messages %}
             <div class="flash-list">
                 {% for category, message in messages %}
-                <div class="flash flash-{{ category }}">{{ message }}</div>
+                <div class="flash flash-{{ category }}">
+                    <i data-feather="{{ 'check-circle' if category == 'success' else 'alert-circle' }}" class="icon"></i>
+                    <span>{{ message }}</span>
+                </div>
                 {% endfor %}
             </div>
             {% endif %}
         {% endwith %}
         {% block content %}{% endblock %}
     </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons@4.29.0/dist/feather.min.js"></script>
+    <script>
+        feather.replace();
+    </script>
+    {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -1,19 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Tableau de bord</h1>
+<h1><i data-feather="home" class="icon icon-lg"></i> Tableau de bord</h1>
 
 <div class="stats">
     <div class="stat-card">
-        <div class="stat-value">{{ nb_produits }}</div>
-        <div class="stat-label">Produits</div>
+        <div class="stat-icon"><i data-feather="package" class="icon"></i></div>
+        <div>
+            <div class="stat-value">{{ nb_produits }}</div>
+            <div class="stat-label">Produits</div>
+        </div>
     </div>
     <div class="stat-card">
-        <div class="stat-value">{{ nb_clients }}</div>
-        <div class="stat-label">Clients</div>
+        <div class="stat-icon"><i data-feather="users" class="icon"></i></div>
+        <div>
+            <div class="stat-value">{{ nb_clients }}</div>
+            <div class="stat-label">Clients</div>
+        </div>
     </div>
     <div class="stat-card">
-        <div class="stat-value">{{ "%.2f"|format(chiffre_affaires) }} €</div>
-        <div class="stat-label">Chiffre d'affaires</div>
+        <div class="stat-icon stat-icon-success"><i data-feather="trending-up" class="icon"></i></div>
+        <div>
+            <div class="stat-value">{{ "%.2f"|format(chiffre_affaires) }} MAD</div>
+            <div class="stat-label">Chiffre d'affaires</div>
+        </div>
     </div>
 </div>
 
@@ -28,7 +37,7 @@
         <tr>
             <td data-label="Date">{{ commande.date.strftime("%d/%m/%Y %H:%M") }}</td>
             <td data-label="Client">{{ commande.client_nom }}</td>
-            <td data-label="Total">{{ "%.2f"|format(commande.total) }} €</td>
+            <td data-label="Total">{{ "%.2f"|format(commande.total) }} MAD</td>
         </tr>
         {% endfor %}
     </tbody>
