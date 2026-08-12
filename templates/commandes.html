@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Commandes</h1>
+
+{% if commandes %}
+<table>
+    <thead>
+        <tr><th>Date</th><th>Client</th><th>Articles</th><th>Total</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for commande in commandes %}
+        <tr>
+            <td data-label="Date">{{ commande.date.strftime("%d/%m/%Y %H:%M") }}</td>
+            <td data-label="Client">{{ commande.client_nom }}</td>
+            <td data-label="Articles">
+                {% for ligne in commande.lignes %}
+                    {{ ligne.quantite }} × {{ ligne.produit_nom }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </td>
+            <td data-label="Total">{{ "%.2f"|format(commande.total) }} €</td>
+            <td data-label="Actions">
+                <form method="post" action="{{ url_for('supprimer_commande', commande_id=commande.id) }}" onsubmit="return confirm('Supprimer cette commande ? Le stock sera recrédité.');">
+                    <button type="submit" class="btn-danger">Supprimer</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="empty">Aucune commande pour le moment.</p>
+{% endif %}
+{% endblock %}

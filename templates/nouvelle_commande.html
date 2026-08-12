@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Nouvelle commande</h1>
+
+{% if not clients or not produits %}
+<p class="empty">
+    Il faut au moins un client et un produit pour créer une commande.
+    Ajoutez-en depuis les pages <a href="{{ url_for('clients') }}">Clients</a> et
+    <a href="{{ url_for('produits') }}">Produits</a>.
+</p>
+{% else %}
+<form method="post" action="{{ url_for('nouvelle_commande') }}" class="card-form form-vertical">
+    <label for="client_id">Client</label>
+    <select name="client_id" id="client_id" required>
+        {% for client in clients %}
+        <option value="{{ client.id }}">{{ client.nom }}</option>
+        {% endfor %}
+    </select>
+
+    <h3>Articles</h3>
+    <div id="lignes">
+        <div class="ligne-commande">
+            <select name="produit_id">
+                {% for produit in produits %}
+                <option value="{{ produit.id }}">{{ produit.nom }} — {{ "%.2f"|format(produit.prix) }} € (stock : {{ produit.stock }})</option>
+                {% endfor %}
+            </select>
+            <input type="number" name="quantite" min="1" value="1" placeholder="Quantité">
+            <button type="button" class="btn-remove-ligne" title="Retirer cet article">✕</button>
+        </div>
+    </div>
+    <button type="button" id="ajouter-ligne" class="btn-secondary">+ Ajouter un article</button>
+
+    <div class="actions">
+        <button type="submit">Enregistrer la commande</button>
+    </div>
+</form>
+
+<template id="ligne-template">
+    <div class="ligne-commande">
+        <select name="produit_id">
+            {% for produit in produits %}
+            <option value="{{ produit.id }}">{{ produit.nom }} — {{ "%.2f"|format(produit.prix) }} € (stock : {{ produit.stock }})</option>
+            {% endfor %}
+        </select>
+        <input type="number" name="quantite" min="1" value="1" placeholder="Quantité">
+        <button type="button" class="btn-remove-ligne" title="Retirer cet article">✕</button>
+    </div>
+</template>
+
+<script>
+    const lignesContainer = document.getElementById("lignes");
+
+    document.getElementById("ajouter-ligne").addEventListener("click", function () {
+        const template = document.getElementById("ligne-template");
+        const clone = template.content.cloneNode(true);
+        lignesContainer.appendChild(clone);
+    });
+
+    lignesContainer.addEventListener("click", function (event) {
+        if (event.target.classList.contains("btn-remove-ligne")) {
+            const lignes = lignesContainer.querySelectorAll(".ligne-commande");
+            if (lignes.length > 1) {
+                event.target.closest(".ligne-commande").remove();
+            }
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

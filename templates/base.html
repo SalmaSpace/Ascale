@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ascale - Gestion des ventes</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-top">
+            <a href="{{ url_for('index') }}" class="brand">Ascale</a>
+            <input type="checkbox" id="nav-toggle" class="nav-toggle">
+            <label for="nav-toggle" class="nav-burger" aria-label="Ouvrir le menu">☰</label>
+        </div>
+        <div class="nav-links">
+            <a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' else '' }}">Tableau de bord</a>
+            <a href="{{ url_for('produits') }}" class="{{ 'active' if request.endpoint in ('produits', 'modifier_produit') else '' }}">Produits</a>
+            <a href="{{ url_for('clients') }}" class="{{ 'active' if request.endpoint in ('clients', 'modifier_client') else '' }}">Clients</a>
+            <a href="{{ url_for('commandes') }}" class="{{ 'active' if request.endpoint == 'commandes' else '' }}">Commandes</a>
+            <a href="{{ url_for('nouvelle_commande') }}" class="btn-nav">+ Nouvelle commande</a>
+        </div>
+    </nav>
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-list">
+                {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

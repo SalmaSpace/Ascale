@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Produits</h1>
+
+<form method="post" action="{{ url_for('ajouter_produit') }}" class="card-form">
+    <div class="form-row">
+        <input type="text" name="nom" placeholder="Nom du produit" required>
+        <input type="number" name="prix" placeholder="Prix (€)" step="0.01" min="0" required>
+        <input type="number" name="stock" placeholder="Stock" min="0" required>
+        <button type="submit">Ajouter</button>
+    </div>
+</form>
+
+{% if produits %}
+<table>
+    <thead>
+        <tr><th>Nom</th><th>Prix</th><th>Stock</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for produit in produits %}
+        <tr>
+            <td data-label="Nom">{{ produit.nom }}</td>
+            <td data-label="Prix">{{ "%.2f"|format(produit.prix) }} €</td>
+            <td data-label="Stock">
+                <span class="badge {{ 'badge-low' if produit.stock <= 5 else '' }}">{{ produit.stock }}</span>
+            </td>
+            <td data-label="Actions" class="actions-cell">
+                <a href="{{ url_for('modifier_produit', produit_id=produit.id) }}" class="btn-secondary">Modifier</a>
+                <form method="post" action="{{ url_for('supprimer_produit', produit_id=produit.id) }}" onsubmit="return confirm('Supprimer ce produit ?');">
+                    <button type="submit" class="btn-danger">Supprimer</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="empty">Aucun produit pour le moment.</p>
+{% endif %}
+{% endblock %}
