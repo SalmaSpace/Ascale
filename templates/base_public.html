@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Ascale — Marbre, Onyx &amp; Granit d'exception{% endblock %}</title>
+    <meta name="description" content="Ascale sélectionne et façonne des marbres, onyx et granits d'exception pour l'architecture et la décoration haut de gamme.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='public.css') }}">
+</head>
+<body>
+    <nav class="pub-nav">
+        <a href="{{ url_for('accueil') }}" class="pub-brand">
+            <span class="pub-brand-mark">A</span>
+            <span class="pub-brand-text">
+                <span class="pub-brand-name">Ascale</span>
+                <span class="pub-brand-tagline">Marbre &amp; Pierres Nobles</span>
+            </span>
+        </a>
+
+        <input type="checkbox" id="pub-nav-toggle" class="pub-nav-toggle">
+        <label for="pub-nav-toggle" class="pub-nav-burger" aria-label="Ouvrir le menu">
+            <span class="pub-burger-bar"></span>
+            <span class="pub-burger-bar"></span>
+            <span class="pub-burger-bar"></span>
+        </label>
+
+        <div class="pub-nav-links">
+            <a href="{{ url_for('accueil') }}" class="{{ 'is-active' if request.endpoint == 'accueil' else '' }}">Accueil</a>
+            <a href="{{ url_for('nos_materiaux') }}" class="{{ 'is-active' if request.endpoint == 'nos_materiaux' else '' }}">Nos matériaux</a>
+            <a href="{{ url_for('reservation_page') }}" class="{{ 'is-active' if request.endpoint in ('reservation_page', 'reservation_confirmee') else '' }}">Réservation</a>
+        </div>
+    </nav>
+
+    <main class="pub-main">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="pub-flash-list">
+                {% for category, message in messages %}
+                <div class="pub-flash pub-flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="pub-footer">
+        <div class="pub-footer-inner">
+            <div class="pub-footer-brand">
+                <span class="pub-brand-mark">A</span>
+                <div>
+                    <div class="pub-footer-name">Ascale</div>
+                    <div class="pub-footer-tagline">Marbre, onyx &amp; granit d'exception</div>
+                </div>
+            </div>
+            <nav class="pub-footer-links">
+                <a href="{{ url_for('accueil') }}">Accueil</a>
+                <a href="{{ url_for('nos_materiaux') }}">Nos matériaux</a>
+                <a href="{{ url_for('reservation_page') }}">Réservation</a>
+                <a href="{{ url_for('chatbot_page') }}">Contact</a>
+            </nav>
+        </div>
+        <div class="pub-footer-bottom">Rendez-vous en showroom sur réservation.</div>
+    </footer>
+
+    {% if request.endpoint != 'chatbot_page' %}
+    <input type="checkbox" id="pub-widget-toggle" class="pub-widget-toggle-input">
+    <div class="pub-widget" id="pub-widget">
+        <div class="pub-widget-teaser" id="pub-widget-teaser">
+            <button type="button" class="pub-widget-teaser-close" id="pub-widget-teaser-close" aria-label="Fermer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+            </button>
+            <div class="pub-widget-teaser-text">
+                <span class="pub-widget-teaser-title">Besoin d'aide ?</span>
+                <span class="pub-widget-teaser-sub">Notre équipe vous répond en quelques instants.</span>
+            </div>
+            <label for="pub-widget-toggle" class="pub-widget-teaser-cta">Discuter maintenant</label>
+        </div>
+
+        <div class="pub-widget-panel" id="pub-widget-panel">
+            <div class="pub-widget-header">
+                <div class="pub-widget-avatar"><span class="pub-widget-avatar-mark">A</span></div>
+                <div class="pub-widget-header-text">
+                    <div class="pub-widget-name">Ascale</div>
+                    <div class="pub-widget-status"><span class="pub-widget-dot"></span> En ligne</div>
+                </div>
+                <label for="pub-widget-toggle" class="pub-widget-close" aria-label="Fermer le chat">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+                </label>
+            </div>
+
+            <div class="pub-widget-messages" id="pub-widget-messages">
+                {% if not conversation_widget %}
+                <div class="pub-widget-bubble pub-widget-bubble-bot">Bonjour, je suis à votre disposition pour répondre à vos questions sur nos matériaux, établir un devis ou suivre une commande.</div>
+                {% endif %}
+                {% for message in conversation_widget %}
+                <div class="pub-widget-bubble pub-widget-bubble-{{ 'client' if message.role == 'client' else 'bot' }}">{{ message.texte }}</div>
+                {% endfor %}
+            </div>
+
+            <form id="pub-widget-form" class="pub-widget-input-row">
+                <input type="text" name="message" id="pub-widget-input" placeholder="Écrire un message..." autocomplete="off" required>
+                <button type="submit" aria-label="Envoyer">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 21 4l-4.5 17-5-7.5L3 11.5Z"></path></svg>
+                </button>
+            </form>
+        </div>
+
+        <label for="pub-widget-toggle" class="pub-widget-fab" aria-label="Ouvrir le chat">
+            <svg class="pub-widget-fab-icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 10h8M8 14h5"></path>
+                <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5v-8Z"></path>
+            </svg>
+            <svg class="pub-widget-fab-icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+        </label>
+    </div>
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons@4.29.0/dist/feather.min.js"></script>
+    <script>feather.replace();</script>
+    <script src="{{ url_for('static', filename='public.js') }}"></script>
+    <script>
+        (function () {
+            var teaser = document.getElementById("pub-widget-teaser");
+            var teaserClose = document.getElementById("pub-widget-teaser-close");
+            var toggle = document.getElementById("pub-widget-toggle");
+            var messages = document.getElementById("pub-widget-messages");
+            var form = document.getElementById("pub-widget-form");
+            var input = document.getElementById("pub-widget-input");
+
+            if (teaser && teaserClose) {
+                if (sessionStorage.getItem("pub_widget_teaser_dismissed") === "1") {
+                    teaser.classList.add("pub-widget-hidden");
+                }
+                teaserClose.addEventListener("click", function () {
+                    teaser.classList.add("pub-widget-hidden");
+                    sessionStorage.setItem("pub_widget_teaser_dismissed", "1");
+                });
+            }
+
+            if (toggle) {
+                toggle.addEventListener("change", function () {
+                    if (toggle.checked) {
+                        if (teaser) {
+                            teaser.classList.add("pub-widget-hidden");
+                            sessionStorage.setItem("pub_widget_teaser_dismissed", "1");
+                        }
+                        if (input) setTimeout(function () { input.focus(); }, 60);
+                        if (messages) messages.scrollTop = messages.scrollHeight;
+                    }
+                });
+            }
+
+            if (form && messages && input) {
+                var scrollBas = function () { messages.scrollTop = messages.scrollHeight; };
+                scrollBas();
+
+                var ajouterBulle = function (texte, role) {
+                    var bulle = document.createElement("div");
+                    bulle.className = "pub-widget-bubble pub-widget-bubble-" + role;
+                    bulle.textContent = texte;
+                    messages.appendChild(bulle);
+                    scrollBas();
+                    return bulle;
+                };
+
+                var afficherTypage = function () {
+                    var indicateur = document.createElement("div");
+                    indicateur.className = "pub-widget-bubble pub-widget-bubble-bot pub-widget-typing";
+                    indicateur.innerHTML = "<span></span><span></span><span></span>";
+                    messages.appendChild(indicateur);
+                    scrollBas();
+                    return indicateur;
+                };
+
+                form.addEventListener("submit", function (event) {
+                    event.preventDefault();
+                    var texte = input.value.trim();
+                    if (!texte) return;
+
+                    ajouterBulle(texte, "client");
+                    input.value = "";
+                    input.focus();
+
+                    var indicateur = afficherTypage();
+                    var debut = Date.now();
+
+                    fetch("{{ url_for('chatbot_widget_envoyer') }}", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: "message=" + encodeURIComponent(texte)
+                    })
+                        .then(function (reponse) { return reponse.json(); })
+                        .then(function (donnees) {
+                            var attente = Math.max(0, 600 - (Date.now() - debut));
+                            setTimeout(function () {
+                                indicateur.remove();
+                                if (donnees && donnees.reponse) ajouterBulle(donnees.reponse, "bot");
+                            }, attente);
+                        })
+                        .catch(function () {
+                            indicateur.remove();
+                            ajouterBulle("Connexion impossible, réessayez.", "bot");
+                        });
+                });
+            }
+        })();
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

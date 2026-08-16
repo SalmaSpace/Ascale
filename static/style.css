@@ -10,6 +10,14 @@
     --primary-600: #52708a;
     --primary-700: #405872;
 
+    /* Accent doré — clin d'œil aux veines des marbres et onyx haut de gamme */
+    --accent-50: #faf3e6;
+    --accent-100: #f4e6c9;
+    --accent-300: #e3bf72;
+    --accent-500: #c8973f;
+    --accent-600: #ad7d2c;
+    --accent-700: #8c6522;
+
     /* Statuts, en tons doux */
     --success-50: #eef4ef;
     --success-100: #e1ebe2;
@@ -43,6 +51,9 @@
     --danger: var(--danger-600);
     --success: var(--success-600);
     --warning: var(--warning-600);
+    --accent: var(--accent-600);
+    --accent-dark: var(--accent-700);
+    --accent-light: var(--accent-50);
 
     --bg: #f6f6f4;
     --surface: #ffffff;
@@ -109,6 +120,21 @@ a { color: inherit; }
     to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes riseIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseDot {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(200, 151, 63, 0.55); }
+    50% { box-shadow: 0 0 0 5px rgba(200, 151, 63, 0); }
+}
+
+@keyframes shimmerSweep {
+    from { left: -60%; }
+    to { left: 130%; }
+}
+
 /* ---------- Navbar ---------- */
 .navbar {
     background: rgba(255, 255, 255, 0.85);
@@ -145,7 +171,12 @@ a { color: inherit; }
     font-family: var(--font-serif);
     font-weight: 600;
     font-size: 1.05rem;
-    box-shadow: var(--shadow-xs);
+    box-shadow: var(--shadow-xs), 0 0 0 2px var(--accent-300);
+    transition: box-shadow var(--transition);
+}
+
+.brand:hover .brand-mark {
+    box-shadow: var(--shadow-sm), 0 0 0 2px var(--accent-500);
 }
 
 .brand-text {
@@ -186,6 +217,15 @@ a { color: inherit; }
 
 .nav-burger:hover { background: var(--gray-100); }
 
+.nav-burger .icon { transition: transform var(--transition); }
+
+.nav-toggle:checked ~ .nav-burger {
+    color: var(--primary-dark);
+    background: var(--primary-light);
+}
+
+.nav-toggle:checked ~ .nav-burger .icon { transform: rotate(90deg); }
+
 .nav-links {
     display: none;
     flex-direction: column;
@@ -224,16 +264,31 @@ a { color: inherit; }
 }
 
 .btn-nav {
+    position: relative;
+    overflow: hidden;
     background: linear-gradient(150deg, var(--primary-500), var(--primary-700)) !important;
     color: #fdfdfc !important;
     justify-content: center;
-    box-shadow: var(--shadow-xs);
+    box-shadow: var(--shadow-xs), 0 0 0 1px var(--accent-300);
+}
+
+.btn-nav::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -60%;
+    width: 35%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+    transform: skewX(-20deg);
 }
 
 .btn-nav:hover {
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-sm), 0 0 0 1px var(--accent-500);
     filter: brightness(1.05);
 }
+
+.btn-nav:hover::after { animation: shimmerSweep 850ms ease; }
 
 @media (min-width: 720px) {
     .nav-burger { display: none; }
@@ -256,7 +311,7 @@ a { color: inherit; }
         justify-content: flex-end;
     }
 
-    .nav-links a.active { border-bottom-color: var(--primary-500); border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+    .nav-links a.active { border-bottom-color: var(--accent-500); border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
 
     .btn-nav { margin-left: 0.85rem; }
 }
@@ -266,7 +321,7 @@ a { color: inherit; }
     max-width: 1040px;
     margin: 0 auto;
     padding: 1.5rem 1.25rem 3rem;
-    animation: fadeIn 0.4s ease;
+    animation: riseIn 0.45s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 @media (min-width: 720px) {
@@ -359,11 +414,15 @@ h3 {
     box-shadow: var(--shadow-sm);
     padding: 1.5rem;
     transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
-    animation: fadeInSoft 0.5s ease both;
+    animation: riseIn 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) both;
 }
 
+.stat-card:nth-child(1) { animation-delay: 0ms; }
+.stat-card:nth-child(2) { animation-delay: 70ms; }
+.stat-card:nth-child(3) { animation-delay: 140ms; }
+
 .stat-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
     box-shadow: var(--shadow-md);
     border-color: var(--border-strong);
 }
@@ -378,11 +437,15 @@ h3 {
     border-radius: var(--radius);
     background: linear-gradient(150deg, var(--primary-50), var(--primary-100));
     color: var(--primary-700);
+    transition: transform var(--transition-fast);
 }
+
+.stat-card:hover .stat-icon { transform: scale(1.08) rotate(-4deg); }
 
 .stat-icon .icon { width: 20px; height: 20px; }
 
 .stat-icon-success { background: linear-gradient(150deg, var(--success-50), var(--success-100)); color: var(--success-700); }
+.stat-icon-accent { background: linear-gradient(150deg, var(--accent-50), var(--accent-100)); color: var(--accent-700); }
 
 .stat-value {
     font-size: 1.5rem;
@@ -424,8 +487,19 @@ th {
     color: var(--muted);
 }
 
-tbody tr { transition: background-color var(--transition-fast); }
-tbody tr:hover { background: var(--gray-25); }
+tbody tr {
+    transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
+    animation: fadeInSoft 0.4s ease both;
+}
+
+tbody tr:nth-child(1) { animation-delay: 0ms; }
+tbody tr:nth-child(2) { animation-delay: 40ms; }
+tbody tr:nth-child(3) { animation-delay: 80ms; }
+tbody tr:nth-child(4) { animation-delay: 120ms; }
+tbody tr:nth-child(5) { animation-delay: 160ms; }
+tbody tr:nth-child(n+6) { animation-delay: 200ms; }
+
+tbody tr:hover { background: var(--accent-50); box-shadow: inset 3px 0 0 var(--accent-500); }
 tr:last-child td { border-bottom: none; }
 
 .actions-cell {
@@ -574,11 +648,11 @@ button, .btn-secondary {
     background: linear-gradient(150deg, var(--primary-500), var(--primary-700));
     color: #fdfdfc;
     box-shadow: var(--shadow-xs);
-    transition: box-shadow var(--transition-fast), filter var(--transition-fast), opacity var(--transition-fast);
+    transition: box-shadow var(--transition-fast), filter var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
-button:hover { box-shadow: var(--shadow-sm); filter: brightness(1.04); }
-button:active { opacity: 0.82; }
+button:hover { box-shadow: var(--shadow-sm); filter: brightness(1.04); transform: translateY(-1px); }
+button:active { opacity: 0.82; transform: translateY(0) scale(0.97); }
 
 button:focus-visible, .btn-secondary:focus-visible, a:focus-visible {
     outline: 2px solid var(--primary-500);
@@ -643,4 +717,480 @@ button:focus-visible, .btn-secondary:focus-visible, a:focus-visible {
     display: flex;
     gap: 0.75rem;
     flex-wrap: wrap;
+}
+
+.nav-logout-form { display: flex; align-items: center; }
+
+/* ---------- Réservation de créneaux ---------- */
+.reservation-jour { margin-bottom: 1.4rem; }
+
+.reservation-jour-titre {
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--gray-600);
+    margin-bottom: 0.6rem;
+    text-transform: capitalize;
+}
+
+.reservation-creneaux {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.creneau-option {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.6rem 0.9rem;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 0.86rem;
+    font-weight: 500;
+    background: var(--surface);
+    transition: border-color var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.creneau-option input[type="radio"] { width: auto; margin: 0; }
+
+.creneau-option:hover { border-color: var(--primary-300); }
+
+.creneau-option:has(input:checked) {
+    border-color: var(--primary-500);
+    background: var(--primary-light);
+    box-shadow: 0 0 0 3px var(--primary-50);
+}
+
+.creneau-option-disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background: var(--gray-50);
+}
+
+/* ---------- Confirmation de réservation ---------- */
+.confirmation-card {
+    max-width: 480px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 1.75rem;
+    animation: riseIn 0.4s ease both;
+}
+
+.confirmation-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 1rem 0 1.5rem;
+    padding: 1rem 1.1rem;
+    background: var(--gray-25);
+    border-radius: var(--radius);
+    font-weight: 600;
+}
+
+.confirmation-details > div { display: flex; align-items: center; gap: 0.5rem; }
+.confirmation-details .icon { color: var(--primary-500); }
+
+.notif-simulee {
+    display: flex;
+    gap: 0.7rem;
+    padding: 1rem 1.1rem;
+    background: var(--accent-50);
+    border: 1px solid var(--accent-100);
+    border-radius: var(--radius);
+    margin-bottom: 1.5rem;
+}
+
+.notif-simulee .icon { color: var(--accent-600); flex-shrink: 0; margin-top: 0.15rem; }
+.notif-simulee strong { display: block; margin-bottom: 0.25rem; font-size: 0.88rem; color: var(--accent-700); }
+.notif-simulee p { margin: 0; font-size: 0.83rem; color: var(--text); line-height: 1.5; }
+
+/* ---------- Chatbot WhatsApp (simulation) ---------- */
+.chatbot-intro {
+    color: var(--muted);
+    font-size: 0.92rem;
+    margin: -0.75rem 0 1.5rem;
+    max-width: 640px;
+}
+
+.whatsapp-shell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-width: 640px;
+    margin: 0 auto 1.25rem;
+}
+
+.whatsapp-header {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(150deg, var(--primary-500), var(--primary-700));
+    color: #fdfdfc;
+    border-bottom: 2px solid var(--accent-500);
+}
+
+.whatsapp-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.18);
+    flex-shrink: 0;
+}
+
+.whatsapp-name { font-weight: 600; font-size: 0.98rem; }
+
+.whatsapp-status {
+    font-size: 0.76rem;
+    opacity: 0.88;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.dot-simulation {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent-300);
+    animation: pulseDot 1.8s ease-in-out infinite;
+}
+
+.whatsapp-messages {
+    background: var(--gray-25);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    max-height: 460px;
+    min-height: 220px;
+    overflow-y: auto;
+}
+
+.chat-bubble {
+    max-width: 82%;
+    padding: 0.65rem 0.9rem;
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    white-space: pre-line;
+    animation: fadeInSoft var(--transition) ease both;
+}
+
+.chat-bubble-bot {
+    align-self: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-500);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+}
+
+.chat-bubble-client {
+    align-self: flex-end;
+    background: linear-gradient(150deg, var(--primary-500), var(--primary-700));
+    color: #fdfdfc;
+    border-bottom-right-radius: 4px;
+}
+
+.whatsapp-input-row {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.9rem 1.1rem;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.whatsapp-input-row input {
+    flex: 1;
+    border-radius: var(--radius-full);
+}
+
+.whatsapp-input-row button {
+    border-radius: var(--radius-full);
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.chatbot-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: 640px;
+    margin: 0 auto 1rem;
+}
+
+.chatbot-suggestions-label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-weight: 600;
+    margin-right: 0.2rem;
+}
+
+.chatbot-reset {
+    max-width: 640px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* ---------- Widget flottant WhatsApp (toutes les pages) ---------- */
+.wa-toggle-input { display: none; }
+
+.wa-widget {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.75rem;
+}
+
+.wa-fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: #25d366;
+    color: #fdfdfc;
+    text-decoration: none;
+    cursor: pointer;
+    position: relative;
+    box-shadow: 0 10px 30px -8px rgba(37, 211, 102, 0.55), var(--shadow-md);
+    animation: waPop 500ms cubic-bezier(0.25, 0.1, 0.25, 1) 400ms both;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.wa-fab .icon { width: 27px; height: 27px; stroke-width: 2; }
+
+.wa-fab::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.5);
+    animation: pulseRing 2.4s ease-out 1.2s infinite;
+}
+
+.wa-fab:hover {
+    transform: scale(1.06);
+    box-shadow: 0 14px 34px -8px rgba(37, 211, 102, 0.65), var(--shadow-md);
+}
+
+.wa-bubble {
+    width: 260px;
+    max-width: calc(100vw - 2.5rem);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: 1rem 1.1rem 1.1rem;
+    position: relative;
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+    animation: waBubbleIn 450ms cubic-bezier(0.25, 0.1, 0.25, 1) 1.2s both;
+}
+
+.wa-bubble.wa-bubble-hidden { display: none; }
+
+#wa-toggle:checked ~ .wa-widget .wa-bubble { display: none; }
+
+.wa-panel {
+    display: none;
+    flex-direction: column;
+    width: 320px;
+    max-width: calc(100vw - 2.5rem);
+    height: 440px;
+    max-height: calc(100vh - 7rem);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    animation: waBubbleIn 280ms cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+
+#wa-toggle:checked ~ .wa-widget .wa-panel { display: flex; }
+
+.wa-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem 1rem;
+    background: linear-gradient(150deg, var(--primary-500), var(--primary-700));
+    color: #fdfdfc;
+    border-bottom: 2px solid var(--accent-500);
+}
+
+.wa-panel-title { flex: 1; min-width: 0; }
+.wa-panel-title .wa-bubble-name { color: #fdfdfc; }
+.wa-panel-title .wa-bubble-sub { color: rgba(255, 255, 255, 0.85); }
+.wa-panel-title .wa-bubble-sub::before { background: #baf7cf; }
+
+.wa-panel-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    color: #fdfdfc;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.15);
+    flex-shrink: 0;
+    transition: background-color var(--transition-fast);
+}
+
+.wa-panel-close:hover { background: rgba(255, 255, 255, 0.28); }
+.wa-panel-close .icon { width: 16px; height: 16px; }
+
+.wa-panel-messages {
+    flex: 1;
+    background: var(--gray-25);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow-y: auto;
+}
+
+.wa-panel-input-row {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem 0.85rem;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.wa-panel-input-row input { flex: 1; border-radius: var(--radius-full); }
+
+.wa-panel-input-row button {
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+    .wa-panel { width: calc(100vw - 2rem); height: min(480px, calc(100vh - 7rem)); }
+}
+
+.wa-bubble-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border-radius: 50%;
+    background: var(--gray-100);
+    color: var(--gray-600);
+    box-shadow: none;
+}
+
+.wa-bubble-close:hover { background: var(--gray-200); }
+
+.wa-bubble-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.6rem;
+    padding-right: 1.2rem;
+}
+
+.wa-bubble-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(150deg, var(--primary-500), var(--primary-700));
+    color: #fdfdfc;
+    flex-shrink: 0;
+}
+
+.wa-bubble-name { font-weight: 600; font-size: 0.86rem; color: var(--text); }
+
+.wa-bubble-sub {
+    font-size: 0.72rem;
+    color: var(--success-600);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.wa-bubble-sub::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--success-600);
+}
+
+.wa-bubble-text {
+    font-size: 0.85rem;
+    color: var(--text);
+    margin: 0 0 0.85rem;
+    line-height: 1.5;
+}
+
+.wa-bubble-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius-full);
+    background: #25d366;
+    color: #fdfdfc;
+    text-decoration: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.82rem;
+    transition: filter var(--transition-fast), transform var(--transition-fast);
+}
+
+.wa-bubble-cta:hover { filter: brightness(1.05); transform: translateY(-1px); }
+
+@keyframes waPop {
+    from { opacity: 0; transform: scale(0.4) translateY(12px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes waBubbleIn {
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes pulseRing {
+    0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.5); }
+    80% { box-shadow: 0 0 0 16px rgba(37, 211, 102, 0); }
+    100% { box-shadow: 0 0 0 16px rgba(37, 211, 102, 0); }
+}
+
+@media (max-width: 480px) {
+    .wa-widget { right: 1rem; bottom: 1rem; }
+    .wa-bubble { width: calc(100vw - 2rem); }
 }

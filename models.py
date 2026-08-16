@@ -6,9 +6,11 @@ redémarrage de l'application (`db.create_all()` n'est plus utilisé).
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
 from itertools import count
 from typing import Optional
+
+from werkzeug.security import check_password_hash, generate_password_hash
 
 
 @dataclass
@@ -52,9 +54,73 @@ class Commande:
     def total(self) -> float:
         return sum(ligne.sous_total for ligne in self.lignes)
 
+    @property
+    def statut(self) -> str:
+        """Statut simulé de la commande, dérivé de son ancienneté.
+
+        Il n'existe pas encore de vrai suivi logistique : ce calcul sert de
+        placeholder démontrable (notamment pour le chatbot) en attendant un
+        futur module de suivi de commande avec un statut stocké et mis à jour
+        par l'équipe.
+        """
+        jours = (datetime.now() - self.date).days
+        if jours < 1:
+            return "Enregistrée"
+        if jours < 3:
+            return "En préparation"
+        if jours < 6:
+            return "Expédiée"
+        return "Livrée"
+
+
+@dataclass
+class Creneau:
+    """Créneau de visite showroom (entité CRENEAU du MCD)."""
+
+    id: int
+    date_creneau: date
+    heure_debut: time
+    heure_fin: time
+    disponible: bool = True
+
+
+@dataclass
+class Reservation:
+    """Réservation d'un créneau (association RESERVER du MCD).
+
+    L'identité du client est stockée directement (nom/téléphone) plutôt que
+    liée par une clé étrangère vers `Client` : la réservation est publique et
+    ne nécessite pas que la personne soit déjà une fiche client enregistrée
+    dans le CRM interne.
+    """
+
+    id: int
+    creneau_id: int
+    client_nom: str
+    client_telephone: str
+    client_email: str
+    date_reservation: datetime
+    statut: str = "Confirmée"
+    email_envoye: bool = False
+
+
+@dataclass
+class Utilisateur:
+    """Compte interne (entité UTILISATEUR du MCD) pour l'espace de gestion."""
+
+    id: int
+    nom: str
+    email: str
+    mot_de_passe_hash: str
+    role: str = "gestionnaire"
+
 
 class StockInsuffisantError(Exception):
     """Levée quand une commande demande plus de stock que disponible."""
+
+
+class CreneauIndisponibleError(Exception):
+    """Levée quand on tente de réserver un créneau inexistant ou déjà pris."""
 
 
 class Store:
@@ -64,9 +130,15 @@ class Store:
         self._clients: dict[int, Client] = {}
         self._produits: dict[int, Produit] = {}
         self._commandes: dict[int, Commande] = {}
+        self._creneaux: dict[int, Creneau] = {}
+        self._reservations: dict[int, Reservation] = {}
+        self._utilisateurs: dict[int, Utilisateur] = {}
         self._client_ids = count(1)
         self._produit_ids = count(1)
         self._commande_ids = count(1)
+        self._creneau_ids = count(1)
+        self._reservation_ids = count(1)
+        self._utilisateur_ids = count(1)
 
     # ---------- Clients ----------
     def list_clients(self):
@@ -187,6 +259,88 @@ class Store:
     def chiffre_affaires(self):
         return sum(commande.total for commande in self._commandes.values())
 
+    # ---------- Créneaux & réservations ----------
+    def list_creneaux(self):
+        return sorted(self._creneaux.values(), key=lambda c: (c.date_creneau, c.heure_debut))
+
+    def get_creneau(self, creneau_id):
+        return self._creneaux.get(creneau_id)
+
+    def add_creneau(self, date_creneau, heure_debut, heure_fin):
+        creneau = Creneau(
+            id=next(self._creneau_ids),
+            date_creneau=date_creneau,
+            heure_debut=heure_debut,
+            heure_fin=heure_fin,
+        )
+        self._creneaux[creneau.id] = creneau
+        return creneau
+
+    def list_reservations(self):
+        return sorted(self._reservations.values(), key=lambda r: r.date_reservation, reverse=True)
+
+    def get_reservation(self, reservation_id):
+        return self._reservations.get(reservation_id)
+
+    def reserver_creneau(self, creneau_id, client_nom, client_telephone, client_email):
+        """Réserve `creneau_id` pour un client, en empêchant la double réservation.
+
+        Le MCD borne la participation d'un CRENEAU à l'association RESERVER à
+        0,1 : un créneau ne peut être réservé qu'une seule fois. On applique
+        cette règle ici en vérifiant `disponible` avant toute création.
+        """
+        creneau = self._creneaux.get(creneau_id)
+        if creneau is None:
+            raise CreneauIndisponibleError("Ce créneau n'existe pas.")
+        if not creneau.disponible:
+            raise CreneauIndisponibleError(
+                "Ce créneau vient d'être réservé par quelqu'un d'autre. Merci d'en choisir un autre."
+            )
+
+        reservation = Reservation(
+            id=next(self._reservation_ids),
+            creneau_id=creneau.id,
+            client_nom=client_nom,
+            client_telephone=client_telephone,
+            client_email=client_email,
+            date_reservation=datetime.now(),
+        )
+        creneau.disponible = False
+        self._reservations[reservation.id] = reservation
+        return reservation
+
+    def annuler_reservation(self, reservation_id):
+        """Annule une réservation et rend son créneau à nouveau disponible."""
+        reservation = self._reservations.pop(reservation_id, None)
+        if reservation is None:
+            return
+        creneau = self._creneaux.get(reservation.creneau_id)
+        if creneau is not None:
+            creneau.disponible = True
+
+    # ---------- Utilisateurs (accès interne) ----------
+    def add_utilisateur(self, nom, email, mot_de_passe, role="gestionnaire"):
+        utilisateur = Utilisateur(
+            id=next(self._utilisateur_ids),
+            nom=nom,
+            email=email.strip().lower(),
+            mot_de_passe_hash=generate_password_hash(mot_de_passe),
+            role=role,
+        )
+        self._utilisateurs[utilisateur.id] = utilisateur
+        return utilisateur
+
+    def get_utilisateur(self, utilisateur_id):
+        return self._utilisateurs.get(utilisateur_id)
+
+    def verifier_identifiants(self, email, mot_de_passe):
+        """Retourne l'Utilisateur correspondant si email + mot de passe sont valides, sinon None."""
+        email = (email or "").strip().lower()
+        for utilisateur in self._utilisateurs.values():
+            if utilisateur.email == email and check_password_hash(utilisateur.mot_de_passe_hash, mot_de_passe):
+                return utilisateur
+        return None
+
 
 def seed(store: Store) -> None:
     """Peuple le store avec des données de démonstration (négoce de marbre de luxe)."""
@@ -250,3 +404,21 @@ def seed(store: Store) -> None:
     # Prix au m² (dalles/plaques), stock exprimé en m² disponibles.
     store.creer_commande(c1.id, [(p1.id, 12), (p4.id, 4)])
     store.creer_commande(c2.id, [(p6.id, 40), (p3.id, 20)])
+
+    # ---------- Utilisateur interne (démo, espace de gestion protégé) ----------
+    store.add_utilisateur("Nasser", "nasser@ascale.ma", "Marbre2026!", role="gestionnaire")
+
+    # ---------- Créneaux de visite showroom (5 prochains jours ouvrés) ----------
+    jour = date.today()
+    jours_ajoutes = 0
+    creneaux_crees = []
+    while jours_ajoutes < 5:
+        if jour.weekday() < 5:  # lundi à vendredi
+            creneaux_crees.append(store.add_creneau(jour, time(9, 0), time(13, 0)))
+            creneaux_crees.append(store.add_creneau(jour, time(14, 0), time(18, 0)))
+            jours_ajoutes += 1
+        jour += timedelta(days=1)
+
+    store.reserver_creneau(
+        creneaux_crees[0].id, "Nadia El Fassi", "0662345678", "nadia.elfassi@outlook.com"
+    )

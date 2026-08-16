@@ -1,0 +1,56 @@
+{% extends "base_public.html" %}
+{% block title %}Réserver une visite — Ascale{% endblock %}
+{% block content %}
+<section class="pub-section pub-page-header">
+    <div class="pub-section-header reveal">
+        <div class="pub-eyebrow">Showroom</div>
+        <h1 class="pub-section-title">Réserver une visite</h1>
+        <p class="pub-section-text">
+            Venez découvrir nos marbres, onyx et granits en showroom. Choisissez un créneau,
+            nous vous accueillons avec plaisir.
+        </p>
+    </div>
+</section>
+
+<section class="pub-section pub-section-narrow" style="padding-top: 0;">
+    {% if not creneaux_par_jour %}
+    <p class="pub-empty reveal">Aucun créneau n'est disponible pour le moment. Merci de nous contacter directement.</p>
+    {% else %}
+    <form method="post" action="{{ url_for('reservation_confirmer') }}" class="reveal">
+        <h2 class="pub-form-step">1. Choisissez un créneau</h2>
+        {% for jour, creneaux_jour in creneaux_par_jour %}
+        <div class="pub-reservation-jour">
+            <div class="pub-reservation-jour-titre">{{ jour|date_fr }}</div>
+            <div class="pub-reservation-creneaux">
+                {% for creneau in creneaux_jour %}
+                <label class="pub-creneau {{ 'pub-creneau-disabled' if not creneau.disponible else '' }}">
+                    <input type="radio" name="creneau_id" value="{{ creneau.id }}" {{ 'disabled' if not creneau.disponible else '' }} required>
+                    <span>{{ creneau.heure_debut.strftime('%Hh%M') }} – {{ creneau.heure_fin.strftime('%Hh%M') }}</span>
+                    <span class="pub-creneau-etat">{{ 'Disponible' if creneau.disponible else 'Complet' }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <h2 class="pub-form-step">2. Vos coordonnées</h2>
+        <div class="pub-field">
+            <input type="text" name="nom" id="nom" placeholder=" " required>
+            <label for="nom">Nom complet</label>
+        </div>
+        <div class="pub-field">
+            <input type="text" name="telephone" id="telephone" placeholder=" " required>
+            <label for="telephone">Téléphone</label>
+        </div>
+        <div class="pub-field">
+            <input type="email" name="email" id="email" placeholder=" " required>
+            <label for="email">Email</label>
+        </div>
+
+        <button type="submit" class="pub-btn pub-btn-gold pub-btn-block">
+            <i data-feather="check" class="pub-icon-sm"></i> Confirmer la réservation
+        </button>
+    </form>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends "base_public.html" %}
+{% block title %}Ascale — Marbre, Onyx &amp; Granit d'exception{% endblock %}
+{% block content %}
+
+<section class="pub-hero">
+    <div class="pub-hero-eyebrow reveal">Négoce de marbre, onyx &amp; granit</div>
+    <h1 class="pub-hero-title reveal">L'excellence de la pierre, façonnée pour vos plus beaux projets</h1>
+    <p class="pub-hero-subtitle reveal">
+        Depuis nos carrières partenaires jusqu'à votre showroom, Ascale sélectionne et façonne
+        des pierres naturelles d'exception pour l'architecture et la décoration haut de gamme.
+    </p>
+    <div class="pub-hero-actions reveal">
+        <a href="{{ url_for('reservation_page') }}" class="pub-btn pub-btn-gold">
+            <i data-feather="calendar" class="pub-icon-sm"></i> Réserver une visite
+        </a>
+        <a href="{{ url_for('chatbot_page') }}" class="pub-btn pub-btn-ghost">
+            <i data-feather="message-circle" class="pub-icon-sm"></i> Discuter avec nous
+        </a>
+    </div>
+    <div class="pub-hero-scroll">
+        <span>Découvrir</span>
+        <i data-feather="chevron-down" class="pub-hero-scroll-icon"></i>
+    </div>
+</section>
+
+<section class="pub-section pub-section-narrow">
+    <div class="reveal">
+        <div class="pub-eyebrow">Notre maison</div>
+        <h2 class="pub-section-title">Un savoir-faire minéral, transmis avec exigence</h2>
+        <p class="pub-section-text">
+            Ascale sélectionne dans les plus belles carrières du monde — Italie, Espagne, Iran, Inde,
+            Portugal — des blocs de marbre, d'onyx et de granit destinés aux projets les plus exigeants.
+            Chaque dalle est choisie pour sa veine, sa teinte et son caractère, puis mise à disposition
+            de nos clients architectes, designers et particuliers.
+        </p>
+    </div>
+
+    <div class="pub-features">
+        <div class="pub-feature reveal">
+            <div class="pub-feature-icon"><i data-feather="globe" class="pub-icon"></i></div>
+            <h3>Sourcing international</h3>
+            <p>Des carrières sélectionnées en Europe, au Moyen-Orient et en Asie pour la diversité et la rareté de leurs veines.</p>
+        </div>
+        <div class="pub-feature reveal">
+            <div class="pub-feature-icon"><i data-feather="award" class="pub-icon"></i></div>
+            <h3>Exigence sur-mesure</h3>
+            <p>Chaque dalle est choisie à l'unité pour révéler tout son caractère dans votre projet.</p>
+        </div>
+        <div class="pub-feature reveal">
+            <div class="pub-feature-icon"><i data-feather="users" class="pub-icon"></i></div>
+            <h3>Accompagnement dédié</h3>
+            <p>De la sélection en showroom à la livraison, un interlocuteur unique vous accompagne.</p>
+        </div>
+    </div>
+</section>
+
+<section class="pub-section">
+    <div class="pub-section-header reveal">
+        <div class="pub-eyebrow">Sélection</div>
+        <h2 class="pub-section-title">Nos matériaux phares</h2>
+        <p class="pub-section-text">Un aperçu de nos pièces les plus recherchées.</p>
+    </div>
+
+    {% if produits_phares %}
+    <div class="pub-products-grid">
+        {% for produit in produits_phares %}
+        <div class="pub-card reveal" style="transition-delay: {{ loop.index0 * 90 }}ms">
+            <div class="pub-card-swatch {{ produit.nom|swatch }}"><div class="pub-card-swatch-inner"></div></div>
+            <div class="pub-card-body">
+                <div class="pub-card-name">{{ produit.nom }}</div>
+                <p class="pub-card-desc">{{ produit.description }}</p>
+                <div class="pub-card-price">
+                    <span>Dès</span>
+                    <strong>{{ "%.0f"|format(produit.prix) }} MAD/m²</strong>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="pub-section-cta reveal">
+        <a href="{{ url_for('nos_materiaux') }}" class="pub-btn pub-btn-dark">
+            Voir tous nos matériaux <i data-feather="arrow-right" class="pub-icon-sm"></i>
+        </a>
+    </div>
+</section>
+
+<section class="pub-cta-final">
+    <div class="pub-cta-final-inner reveal">
+        <h2>Envie de découvrir nos matériaux en showroom ?</h2>
+        <p>Réservez une visite ou échangez dès maintenant avec notre équipe.</p>
+        <div class="pub-hero-actions">
+            <a href="{{ url_for('reservation_page') }}" class="pub-btn pub-btn-gold">
+                <i data-feather="calendar" class="pub-icon-sm"></i> Réserver une visite
+            </a>
+            <a href="{{ url_for('chatbot_page') }}" class="pub-btn pub-btn-ghost">
+                <i data-feather="message-circle" class="pub-icon-sm"></i> Discuter avec nous
+            </a>
+        </div>
+    </div>
+</section>
+{% endblock %}

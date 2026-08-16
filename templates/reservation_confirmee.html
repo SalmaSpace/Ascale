@@ -1,0 +1,45 @@
+{% extends "base_public.html" %}
+{% block title %}Réservation confirmée — Ascale{% endblock %}
+{% block content %}
+<section class="pub-section pub-section-narrow pub-confirmation">
+    <div class="pub-confirmation-card reveal">
+        <svg class="pub-success-check" viewBox="0 0 52 52" aria-hidden="true">
+            <circle class="pub-success-circle" cx="26" cy="26" r="24" fill="none"></circle>
+            <path class="pub-success-mark" fill="none" d="M14 27l7 7 16-16"></path>
+        </svg>
+        <h1 class="pub-section-title">Réservation confirmée</h1>
+        <p class="pub-section-text">Merci {{ reservation.client_nom }}, votre visite est réservée.</p>
+
+        {% if creneau %}
+        <div class="pub-confirmation-details">
+            <div><i data-feather="calendar" class="pub-icon-sm"></i> {{ creneau.date_creneau|date_fr }}</div>
+            <div><i data-feather="clock" class="pub-icon-sm"></i> {{ creneau.heure_debut.strftime('%Hh%M') }} – {{ creneau.heure_fin.strftime('%Hh%M') }}</div>
+        </div>
+        {% endif %}
+
+        <div class="pub-notif-stack">
+            {% if reservation.email_envoye %}
+            <div class="pub-notif pub-notif-reelle">
+                <i data-feather="mail" class="pub-icon-sm"></i>
+                <div>
+                    <strong>Email envoyé</strong>
+                    <p>Un email de confirmation a été envoyé à {{ reservation.client_email }}.</p>
+                </div>
+            </div>
+            {% else %}
+            <div class="pub-notif pub-notif-attente">
+                <i data-feather="mail" class="pub-icon-sm"></i>
+                <div>
+                    <strong>Email non envoyé</strong>
+                    <p>L'envoi automatique à {{ reservation.client_email }} n'est pas encore configuré côté serveur.</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <a href="{{ url_for('reservation_page') }}" class="pub-btn pub-btn-outline">
+            <i data-feather="calendar" class="pub-icon-sm"></i> Réserver un autre créneau
+        </a>
+    </div>
+</section>
+{% endblock %}

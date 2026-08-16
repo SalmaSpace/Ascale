@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<h1><i data-feather="clipboard" class="icon icon-lg"></i> Gestion des réservations</h1>
+
+{% if reservations %}
+<table>
+    <thead>
+        <tr><th>Client</th><th>Téléphone</th><th>Créneau</th><th>Statut</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for reservation in reservations %}
+        {% set creneau = creneaux_par_id.get(reservation.creneau_id) %}
+        <tr>
+            <td data-label="Client">{{ reservation.client_nom }}</td>
+            <td data-label="Téléphone">{{ reservation.client_telephone }}</td>
+            <td data-label="Créneau">
+                {% if creneau %}
+                {{ creneau.date_creneau|date_fr }} — {{ creneau.heure_debut.strftime('%Hh%M') }}–{{ creneau.heure_fin.strftime('%Hh%M') }}
+                {% else %}
+                —
+                {% endif %}
+            </td>
+            <td data-label="Statut">
+                <span class="badge badge-success">
+                    <i data-feather="check-circle" class="icon icon-sm"></i> {{ reservation.statut }}
+                </span>
+            </td>
+            <td data-label="Actions" class="actions-cell">
+                <form method="post" action="{{ url_for('admin_reservation_annuler', reservation_id=reservation.id) }}" onsubmit="return confirm('Annuler cette réservation ?');">
+                    <button type="submit" class="btn-danger btn-sm">
+                        <i data-feather="x-circle" class="icon icon-sm"></i> Annuler
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="empty">Aucune réservation pour le moment.</p>
+{% endif %}
+{% endblock %}

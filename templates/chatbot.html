@@ -1,0 +1,141 @@
+{% extends "base_public.html" %}
+{% block title %}Discuter avec Ascale{% endblock %}
+{% block content %}
+<section class="pub-section pub-section-narrow pub-chat-page">
+    <div class="pub-section-header reveal">
+        <div class="pub-eyebrow">Assistant Ascale</div>
+        <h1 class="pub-section-title">Discutons de votre projet</h1>
+        <p class="pub-section-text">
+            Posez une question sur nos matériaux, demandez un devis instantané, ou suivez une
+            commande — comme sur WhatsApp.
+        </p>
+    </div>
+
+    <div class="pub-chat reveal">
+        <div class="pub-chat-header">
+            <div class="pub-chat-avatar"><i data-feather="shopping-bag" class="pub-icon-sm"></i></div>
+            <div>
+                <div class="pub-chat-name">Ascale Marbre</div>
+                <div class="pub-chat-status"><span class="pub-chat-dot"></span> Simulation — API WhatsApp non connectée</div>
+            </div>
+            <button type="button" class="pub-chat-reset" id="pub-chat-reset" aria-label="Réinitialiser la conversation">
+                <i data-feather="rotate-ccw" class="pub-icon-sm"></i>
+            </button>
+        </div>
+
+        <div class="pub-chat-messages" id="pub-chat-messages">
+            {% if not conversation %}
+            <div class="pub-chat-bubble pub-chat-bubble-bot">👋 Bonjour ! Posez une question produit, demandez un devis, ou suivez une commande.</div>
+            {% endif %}
+            {% for message in conversation %}
+            <div class="pub-chat-bubble pub-chat-bubble-{{ 'client' if message.role == 'client' else 'bot' }}">{{ message.texte }}</div>
+            {% endfor %}
+        </div>
+
+        <div class="pub-chat-suggestions" id="pub-chat-suggestions">
+            {% for exemple in exemples %}
+            <button type="button" class="pub-chip" data-message="{{ exemple }}">{{ exemple }}</button>
+            {% endfor %}
+        </div>
+
+        <form id="pub-chat-form" class="pub-chat-input-row">
+            <input type="text" name="message" id="pub-chat-input" placeholder="Écrire un message..." autocomplete="off" required autofocus>
+            <button type="submit" aria-label="Envoyer"><i data-feather="send" class="pub-icon-sm"></i></button>
+        </form>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        var messages = document.getElementById("pub-chat-messages");
+        var form = document.getElementById("pub-chat-form");
+        var input = document.getElementById("pub-chat-input");
+        var resetBtn = document.getElementById("pub-chat-reset");
+        var suggestions = document.getElementById("pub-chat-suggestions");
+        if (!messages || !form || !input) return;
+
+        function scrollBas() {
+            messages.scrollTop = messages.scrollHeight;
+        }
+        scrollBas();
+
+        function ajouterBulle(texte, role) {
+            var bulle = document.createElement("div");
+            bulle.className = "pub-chat-bubble pub-chat-bubble-" + role;
+            bulle.textContent = texte;
+            messages.appendChild(bulle);
+            scrollBas();
+            return bulle;
+        }
+
+        function afficherTypage() {
+            var indicateur = document.createElement("div");
+            indicateur.className = "pub-chat-bubble pub-chat-bubble-bot pub-chat-typing";
+            indicateur.innerHTML = "<span></span><span></span><span></span>";
+            messages.appendChild(indicateur);
+            scrollBas();
+            return indicateur;
+        }
+
+        function envoyerMessage(texte) {
+            texte = (texte || "").trim();
+            if (!texte) return;
+
+            ajouterBulle(texte, "client");
+            input.value = "";
+            input.focus();
+            if (suggestions) suggestions.classList.add("pub-chat-suggestions-hidden");
+
+            var indicateur = afficherTypage();
+            var debut = Date.now();
+
+            fetch("{{ url_for('chatbot_widget_envoyer') }}", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: "message=" + encodeURIComponent(texte)
+            })
+                .then(function (reponse) { return reponse.json(); })
+                .then(function (donnees) {
+                    var attente = Math.max(0, 650 - (Date.now() - debut));
+                    setTimeout(function () {
+                        indicateur.remove();
+                        if (donnees && donnees.reponse) {
+                            ajouterBulle(donnees.reponse, "bot");
+                        }
+                    }, attente);
+                })
+                .catch(function () {
+                    indicateur.remove();
+                    ajouterBulle("⚠️ Connexion impossible, réessayez.", "bot");
+                });
+        }
+
+        form.addEventListener("submit", function (event) {
+            event.preventDefault();
+            envoyerMessage(input.value);
+        });
+
+        if (suggestions) {
+            suggestions.addEventListener("click", function (event) {
+                var chip = event.target.closest(".pub-chip");
+                if (chip) envoyerMessage(chip.dataset.message);
+            });
+        }
+
+        if (resetBtn) {
+            resetBtn.addEventListener("click", function () {
+                fetch("{{ url_for('chatbot_reinitialiser') }}", {
+                    method: "POST",
+                    headers: { "Accept": "application/json" }
+                }).then(function () {
+                    messages.innerHTML = "";
+                    ajouterBulle("👋 Bonjour ! Posez une question produit, demandez un devis, ou suivez une commande.", "bot");
+                    if (suggestions) suggestions.classList.remove("pub-chat-suggestions-hidden");
+                });
+            });
+        }
+    })();
+</script>
+{% endblock %}

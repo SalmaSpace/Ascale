@@ -6,3 +6,4 @@ instance/
 .claude/settings.local.json
 scratch_*.log
 scratch_pid.txt
+.env

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confirmation de votre visite showroom Ascale</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f2ede3; font-family: Arial, Helvetica, sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f2ede3; padding: 32px 16px;">
+<tr>
+<td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px; background-color:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #e5ded0;">
+<tr>
+<td style="background-color:#1c1b19; background-image: linear-gradient(150deg, #232326, #1c1b19); padding: 28px 32px; text-align:center;">
+<table role="presentation" align="center" cellpadding="0" cellspacing="0"><tr><td style="width:44px; height:44px; border-radius:12px; background-color:#c8973f; background-image: linear-gradient(150deg, #c8973f, #8c6522); color:#1c1b19; font-family: Georgia, 'Times New Roman', serif; font-weight:bold; font-size:20px; text-align:center; vertical-align:middle;">A</td></tr></table>
+<div style="color:#faf8f4; font-family: Georgia, 'Times New Roman', serif; font-size:20px; font-weight:bold; margin-top:12px;">Ascale</div>
+<div style="color:#e3bf72; font-size:11px; letter-spacing:2px; text-transform:uppercase; margin-top:4px;">Marbre &amp; Pierres Nobles</div>
+</td>
+</tr>
+<tr>
+<td style="padding: 32px;">
+<h1 style="margin:0 0 14px; font-family: Georgia, 'Times New Roman', serif; font-size:22px; color:#1c1b19;">Votre visite est confirmée</h1>
+<p style="margin:0 0 24px; font-size:15px; line-height:1.6; color:#3a382f;">
+Bonjour {{ reservation.client_nom }},<br>
+Nous avons le plaisir de confirmer votre réservation pour une visite de notre showroom.
+</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f2ede3; border-radius:12px; margin-bottom:24px;">
+<tr>
+<td style="padding:18px 22px; font-size:15px; color:#1c1b19; font-weight:bold; line-height:1.7;">
+{% if creneau %}
+📅 {{ creneau.date_creneau|date_fr }}<br>
+🕐 {{ creneau.heure_debut.strftime('%Hh%M') }} – {{ creneau.heure_fin.strftime('%Hh%M') }}
+{% else %}
+Détails du créneau indisponibles.
+{% endif %}
+</td>
+</tr>
+</table>
+<p style="margin:0 0 8px; font-size:13px; color:#8a8578;">Référence réservation n°{{ reservation.id }}</p>
+<p style="margin:0; font-size:14px; line-height:1.6; color:#3a382f;">
+À très bientôt en showroom.<br>L'équipe Ascale
+</p>
+</td>
+</tr>
+<tr>
+<td style="padding: 18px 32px; background-color:#f2ede3; text-align:center; font-size:12px; color:#8a8578;">
+Ascale — Marbre, onyx &amp; granit d'exception
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</body>
+</html>

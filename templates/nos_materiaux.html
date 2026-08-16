@@ -1,0 +1,46 @@
+{% extends "base_public.html" %}
+{% block title %}Nos matériaux — Ascale{% endblock %}
+{% block content %}
+<section class="pub-section pub-page-header">
+    <div class="pub-section-header reveal">
+        <div class="pub-eyebrow">Catalogue</div>
+        <h1 class="pub-section-title">Nos matériaux</h1>
+        <p class="pub-section-text">
+            Marbres, onyx et granits sélectionnés pour leur caractère. Prix indicatifs au m²,
+            disponibilité en showroom.
+        </p>
+    </div>
+
+    {% if produits %}
+    <div class="pub-products-grid">
+        {% for produit in produits %}
+        <div class="pub-card reveal" style="transition-delay: {{ (loop.index0 % 4) * 90 }}ms">
+            <div class="pub-card-swatch {{ produit.nom|swatch }}"><div class="pub-card-swatch-inner"></div></div>
+            <div class="pub-card-body">
+                <div class="pub-card-name">{{ produit.nom }}</div>
+                <p class="pub-card-desc">{{ produit.description }}</p>
+                <div class="pub-card-price">
+                    <span>{{ 'En stock' if produit.stock > 0 else 'Rupture' }}</span>
+                    <strong>{{ "%.0f"|format(produit.prix) }} MAD/m²</strong>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="pub-empty">Aucun matériau disponible pour le moment.</p>
+    {% endif %}
+
+    <div class="pub-section-cta reveal">
+        <p class="pub-section-text" style="margin-bottom: 1.5rem;">Une question sur un matériau ou besoin d'un devis ?</p>
+        <div class="pub-hero-actions" style="justify-content: center;">
+            <a href="{{ url_for('chatbot_page') }}" class="pub-btn pub-btn-gold">
+                <i data-feather="message-circle" class="pub-icon-sm"></i> Demander un devis via le chatbot
+            </a>
+            <a href="{{ url_for('reservation_page') }}" class="pub-btn pub-btn-outline">
+                <i data-feather="calendar" class="pub-icon-sm"></i> Réserver une visite
+            </a>
+        </div>
+    </div>
+</section>
+{% endblock %}
