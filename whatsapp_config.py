@@ -22,16 +22,41 @@ def api_configuree() -> bool:
     return bool(WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN)
 
 
-def envoyer_message(destinataire: str, texte: str) -> None:
-    """Enverra `texte` au numéro `destinataire` via l'API Graph de Meta.
+def envoyer_message(destinataire: str, texte: str) -> bool:
+    """Envoie `texte` au numéro `destinataire` via l'API Graph de Meta.
 
-    Non implémenté tant que le compte WhatsApp Business n'est pas actif :
-    ce point d'entrée existe pour que l'appel soit déjà prêt côté code une
-    fois les identifiants disponibles (appel HTTP vers l'API Graph avec
-    WHATSAPP_ACCESS_TOKEN / WHATSAPP_PHONE_NUMBER_ID).
+    Retourne True si l'envoi a réussi, False sinon.
+    Ne fait rien tant que les identifiants ne sont pas configurés.
     """
+    import json
+    import urllib.request
+    import urllib.error
+
     if not api_configuree():
-        return
-    raise NotImplementedError(
-        "Envoi via l'API WhatsApp Business à implémenter une fois le compte activé."
+        return False
+
+    url = (
+        f"https://graph.facebook.com/{WHATSAPP_API_VERSION}"
+        f"/{WHATSAPP_PHONE_NUMBER_ID}/messages"
     )
+    payload = json.dumps({
+        "messaging_product": "whatsapp",
+        "to": destinataire,
+        "type": "text",
+        "text": {"body": texte},
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {WHATSAPP_ACCESS_TOKEN}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return resp.status == 200
+    except urllib.error.URLError:
+        return False

@@ -6,27 +6,67 @@
         <div class="pub-eyebrow">Catalogue</div>
         <h1 class="pub-section-title">Nos matériaux</h1>
         <p class="pub-section-text">
-            Marbres, onyx et granits sélectionnés pour leur caractère. Prix indicatifs au m²,
-            disponibilité en showroom.
+            Marbres, onyx, granits et travertins sélectionnés pour leur caractère.
+            Prix indicatifs au m², disponibilité en showroom.
         </p>
     </div>
 
     {% if produits %}
-    <div class="pub-products-grid">
+    <!-- Filtres -->
+    <div class="pub-filtres reveal">
+        <div class="pub-filtres-cats">
+            <button class="pub-filtre-btn active" data-cat="tous">Tous</button>
+            <button class="pub-filtre-btn" data-cat="marbre">Marbre</button>
+            <button class="pub-filtre-btn" data-cat="granit">Granit</button>
+            <button class="pub-filtre-btn" data-cat="onyx">Onyx</button>
+            <button class="pub-filtre-btn" data-cat="travertin">Travertin</button>
+        </div>
+        <div class="pub-filtres-options">
+            <label class="pub-filtre-toggle">
+                <input type="checkbox" id="filtre-dispo"> Disponible uniquement
+            </label>
+            <select id="tri-prix" class="pub-filtre-select">
+                <option value="">Trier par prix</option>
+                <option value="asc">Prix croissant</option>
+                <option value="desc">Prix décroissant</option>
+            </select>
+        </div>
+    </div>
+
+    <p class="pub-filtre-count" id="nb-resultats">{{ produits|length }} matériaux</p>
+
+    <div class="pub-products-grid" id="grille-produits">
         {% for produit in produits %}
-        <div class="pub-card reveal" style="transition-delay: {{ (loop.index0 % 4) * 90 }}ms">
+        <div class="pub-card reveal"
+             style="transition-delay: {{ (loop.index0 % 4) * 90 }}ms"
+             data-cat="{{ produit.categorie.nom | lower if produit.categorie else 'autre' }}"
+             data-prix="{{ produit.prix }}"
+             data-stock="{{ produit.stock }}">
             <div class="pub-card-swatch {{ produit.nom|swatch }}"><div class="pub-card-swatch-inner"></div></div>
             <div class="pub-card-body">
                 <div class="pub-card-name">{{ produit.nom }}</div>
+                {% if produit.categorie %}
+                <div class="pub-card-cat">{{ produit.categorie.nom }}</div>
+                {% endif %}
                 <p class="pub-card-desc">{{ produit.description }}</p>
                 <div class="pub-card-price">
-                    <span>{{ 'En stock' if produit.stock > 0 else 'Rupture' }}</span>
+                    <span class="{{ 'pub-stock-ok' if produit.stock > 0 else 'pub-stock-vide' }}">
+                        {{ produit.stock ~ ' m² en stock' if produit.stock > 0 else 'Rupture' }}
+                    </span>
                     <strong>{{ "%.0f"|format(produit.prix) }} MAD/m²</strong>
                 </div>
+                <a href="{{ url_for('commander') }}" class="pub-card-btn">
+                    Commander →
+                </a>
             </div>
         </div>
         {% endfor %}
     </div>
+
+    <div id="aucun-resultat" style="display:none;" class="pub-empty">
+        Aucun matériau ne correspond à vos filtres.
+    </div>
+
     {% else %}
     <p class="pub-empty">Aucun matériau disponible pour le moment.</p>
     {% endif %}
@@ -43,4 +83,100 @@
         </div>
     </div>
 </section>
+
+<style>
+.pub-filtres {
+    display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;
+    margin-bottom: 1.5rem; padding: 1rem 1.25rem;
+    background: var(--clr-surface, #faf9f6);
+    border: 1px solid var(--clr-border, #e0ddd6); border-radius: 10px;
+}
+.pub-filtres-cats { display: flex; flex-wrap: wrap; gap: .5rem; }
+.pub-filtre-btn {
+    padding: .4rem 1rem; border-radius: 20px;
+    border: 1.5px solid var(--clr-border, #e0ddd6);
+    background: transparent; cursor: pointer; font-size: .85rem;
+    transition: all .15s;
+}
+.pub-filtre-btn:hover, .pub-filtre-btn.active {
+    background: var(--clr-anthracite, #1a1a1a);
+    border-color: var(--clr-anthracite, #1a1a1a); color: #fff;
+}
+.pub-filtres-options { display: flex; align-items: center; gap: 1rem; margin-left: auto; flex-wrap: wrap; }
+.pub-filtre-toggle { display: flex; align-items: center; gap: .4rem; font-size: .85rem; cursor: pointer; }
+.pub-filtre-toggle input { accent-color: var(--clr-gold, #c9a96e); }
+.pub-filtre-select {
+    padding: .35rem .7rem; border: 1px solid var(--clr-border, #e0ddd6);
+    border-radius: 6px; font-size: .85rem; cursor: pointer; background: #fff;
+}
+.pub-filtre-count { font-size: .85rem; color: #888; margin-bottom: 1rem; }
+
+.pub-card-cat {
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--clr-gold, #c9a96e); margin-bottom: .4rem;
+}
+.pub-card-btn {
+    display: inline-block; margin-top: .75rem;
+    color: var(--clr-gold, #c9a96e); font-size: .85rem;
+    font-weight: 600; text-decoration: none;
+}
+.pub-card-btn:hover { text-decoration: underline; }
+.pub-stock-ok { color: #2e7d32; font-size: .8rem; }
+.pub-stock-vide { color: #c62828; font-size: .8rem; }
+</style>
+
+<script>
+var catActive = 'tous';
+var dispoDispo = false;
+var triPrix = '';
+
+function appliquerFiltres() {
+    var cartes = document.querySelectorAll('#grille-produits .pub-card');
+    var nb = 0;
+
+    // Tri
+    var liste = Array.from(cartes);
+    if (triPrix === 'asc') {
+        liste.sort(function(a, b) { return parseFloat(a.dataset.prix) - parseFloat(b.dataset.prix); });
+    } else if (triPrix === 'desc') {
+        liste.sort(function(a, b) { return parseFloat(b.dataset.prix) - parseFloat(a.dataset.prix); });
+    }
+    liste.forEach(function(el) { el.parentNode.appendChild(el); });
+
+    // Filtre
+    cartes.forEach(function(card) {
+        var cat = card.dataset.cat || '';
+        var stock = parseInt(card.dataset.stock || '0');
+        var visible = true;
+
+        if (catActive !== 'tous' && !cat.includes(catActive)) visible = false;
+        if (dispoDispo && stock === 0) visible = false;
+
+        card.style.display = visible ? '' : 'none';
+        if (visible) nb++;
+    });
+
+    document.getElementById('nb-resultats').textContent = nb + ' matériau' + (nb > 1 ? 'x' : '');
+    document.getElementById('aucun-resultat').style.display = nb === 0 ? '' : 'none';
+}
+
+document.querySelectorAll('.pub-filtre-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.pub-filtre-btn').forEach(function(b) { b.classList.remove('active'); });
+        this.classList.add('active');
+        catActive = this.dataset.cat;
+        appliquerFiltres();
+    });
+});
+
+document.getElementById('filtre-dispo').addEventListener('change', function() {
+    dispoDispo = this.checked;
+    appliquerFiltres();
+});
+
+document.getElementById('tri-prix').addEventListener('change', function() {
+    triPrix = this.value;
+    appliquerFiltres();
+});
+</script>
 {% endblock %}

@@ -1,17 +1,22 @@
+import csv
+import json
+import os
 import re
 from functools import wraps
+from io import StringIO
 from itertools import groupby
 
 from dotenv import load_dotenv
 
-load_dotenv()  # avant les autres imports : email_service lit les variables d'env au chargement
+load_dotenv()
 
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, Response, flash, redirect, render_template, request, session, url_for
 from flask_mail import Mail
 
 import chatbot
 import email_service
 import whatsapp_config
+from database import db
 from models import CreneauIndisponibleError, Store, StockInsuffisantError, seed
 
 TAILLE_MAX_CONVERSATION_CHATBOT = 30
@@ -24,17 +29,14 @@ MOIS_FR = [
     "juillet", "août", "septembre", "octobre", "novembre", "décembre",
 ]
 
+STATUTS_COMMANDE = ["Enregistrée", "En préparation", "Expédiée", "Livrée", "Annulée"]
+
 
 def formater_date_fr(valeur):
-    """Formate une date en français (ex. « lundi 17 août ») sans dépendre de la
-    locale système, pour rester portable d'une machine à l'autre."""
     return f"{JOURS_FR[valeur.weekday()].capitalize()} {valeur.day} {MOIS_FR[valeur.month - 1]}"
 
 
 def classe_swatch(nom):
-    """Choisit une classe CSS de "veinage" abstrait pour la vignette d'un
-    matériau, faute de vraies photos produit (pas de gestion d'images dans
-    l'app pour l'instant)."""
     nom_lower = nom.lower()
     if "noir" in nom_lower:
         return "pub-swatch-noir"
@@ -64,9 +66,12 @@ def login_required(vue):
 
 def create_app():
     app = Flask(__name__)
-    app.config["SECRET_KEY"] = "dev"
-    app.jinja_env.filters["date_fr"] = formater_date_fr
-    app.jinja_env.filters["swatch"] = classe_swatch
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-ascale-2026")
+
+    # Base de données SQLite (fichier local, persiste entre les redémarrages)
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(basedir, "ascale.db")
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     app.config["MAIL_SERVER"] = email_service.MAIL_SERVER
     app.config["MAIL_PORT"] = email_service.MAIL_PORT
@@ -74,10 +79,17 @@ def create_app():
     app.config["MAIL_USERNAME"] = email_service.MAIL_USERNAME
     app.config["MAIL_PASSWORD"] = email_service.MAIL_PASSWORD
     app.config["MAIL_DEFAULT_SENDER"] = email_service.MAIL_DEFAULT_SENDER
+
+    db.init_app(app)
     app.mail = Mail(app)
 
-    app.store = Store()
-    seed(app.store)
+    app.jinja_env.filters["date_fr"] = formater_date_fr
+    app.jinja_env.filters["swatch"] = classe_swatch
+
+    with app.app_context():
+        db.create_all()
+        app.store = Store(db)
+        seed(app.store)
 
     register_routes(app)
     return app
@@ -86,7 +98,7 @@ def create_app():
 def register_routes(app):
     store = app.store
 
-    # ---------- Espace public (site vitrine) ----------
+    # ---------- Site public ----------
     @app.route("/")
     def accueil():
         tous_produits = store.list_produits()
@@ -106,16 +118,81 @@ def register_routes(app):
     def nos_materiaux():
         return render_template("nos_materiaux.html", produits=store.list_produits())
 
-    # ---------- Gestion interne (tableau de bord) ----------
+    # ---------- Commande publique ----------
+    @app.route("/commander", methods=["GET", "POST"])
+    def commander():
+        produits = store.list_produits()
+
+        if request.method == "POST":
+            nom = request.form.get("nom", "").strip()
+            email = request.form.get("email", "").strip()
+            telephone = request.form.get("telephone", "").strip()
+
+            if not nom or not telephone or not email:
+                flash("Merci de renseigner votre nom, téléphone et email.", "error")
+                return render_template("commander.html", produits=produits)
+
+            if not EMAIL_REGEX.match(email):
+                flash("Adresse email invalide.", "error")
+                return render_template("commander.html", produits=produits)
+
+            produit_ids = request.form.getlist("produit_id")
+            quantites = request.form.getlist("quantite")
+
+            lignes_demandees = []
+            for pid, qty in zip(produit_ids, quantites):
+                if not pid or not qty:
+                    continue
+                try:
+                    q = int(qty)
+                    if q > 0:
+                        lignes_demandees.append((int(pid), q))
+                except ValueError:
+                    flash("Quantité invalide.", "error")
+                    return render_template("commander.html", produits=produits)
+
+            if not lignes_demandees:
+                flash("Sélectionnez au moins un produit avec une quantité.", "error")
+                return render_template("commander.html", produits=produits)
+
+            try:
+                commande = store.creer_commande_publique(nom, email, telephone, lignes_demandees)
+            except (StockInsuffisantError, ValueError) as exc:
+                flash(str(exc), "error")
+                return render_template("commander.html", produits=produits)
+
+            return redirect(url_for("commande_confirmee", commande_id=commande.id))
+
+        return render_template("commander.html", produits=produits)
+
+    @app.route("/commande/confirmee/<int:commande_id>")
+    def commande_confirmee(commande_id):
+        commande = store.get_commande(commande_id)
+        if commande is None:
+            flash("Commande introuvable.", "error")
+            return redirect(url_for("commander"))
+        return render_template("commande_confirmee.html", commande=commande)
+
+    # ---------- Gestion interne ----------
     @app.route("/gestion")
     def index():
         commandes = store.list_commandes()
+        top = store.top_produits_commandes(5)
+        sources = store.commandes_par_source()
         return render_template(
             "index.html",
             nb_produits=len(store.list_produits()),
             nb_clients=len(store.list_clients()),
             chiffre_affaires=store.chiffre_affaires(),
             dernieres_commandes=commandes[:5],
+            nb_commandes_publiques=store.nb_commandes_publiques(),
+            stock_faible=store.produits_stock_faible(),
+            rupture=store.produits_rupture(),
+            # JSON pour Chart.js (Jinja échappe, on double-encode)
+            chart_top_noms=json.dumps([r.nom.rsplit(" ", 1)[-1] for r in top]),
+            chart_top_qtes=json.dumps([float(r.total_qte) for r in top]),
+            chart_sources_labels=json.dumps(list(sources.keys())),
+            chart_sources_data=json.dumps(list(sources.values())),
         )
 
     # ---------- Produits ----------
@@ -221,10 +298,14 @@ def register_routes(app):
         flash("Client supprimé.", "success")
         return redirect(url_for("clients"))
 
-    # ---------- Commandes ----------
+    # ---------- Commandes (admin) ----------
     @app.route("/commandes")
     def commandes():
-        return render_template("commandes.html", commandes=store.list_commandes())
+        return render_template(
+            "commandes.html",
+            commandes=store.list_commandes(),
+            statuts=STATUTS_COMMANDE,
+        )
 
     @app.route("/commandes/nouvelle", methods=["GET", "POST"])
     def nouvelle_commande():
@@ -263,18 +344,61 @@ def register_routes(app):
             produits=store.list_produits(),
         )
 
+    @app.route("/commandes/<int:commande_id>/statut", methods=["POST"])
+    def mettre_a_jour_statut(commande_id):
+        nouveau_statut = request.form.get("statut", "").strip()
+        if nouveau_statut not in STATUTS_COMMANDE:
+            flash("Statut invalide.", "error")
+        else:
+            store.mettre_a_jour_statut_commande(commande_id, nouveau_statut)
+            flash(f"Statut mis à jour : {nouveau_statut}.", "success")
+        return redirect(url_for("commandes"))
+
     @app.route("/commandes/<int:commande_id>/supprimer", methods=["POST"])
     def supprimer_commande(commande_id):
         store.supprimer_commande(commande_id)
         flash("Commande supprimée, le stock a été recrédité.", "success")
         return redirect(url_for("commandes"))
 
-    # ---------- Chatbot WhatsApp (simulation) ----------
+    @app.route("/admin/commandes/export")
+    def export_commandes_csv():
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["ID", "Date", "Client", "Produits", "Total (MAD)", "Statut", "Source"])
+        for c in store.list_commandes():
+            produits_str = " | ".join(
+                f"{l.quantite}m² {l.produit_nom}" for l in c.lignes
+            )
+            writer.writerow([
+                c.id,
+                c.date.strftime("%d/%m/%Y %H:%M"),
+                c.client_nom,
+                produits_str,
+                f"{c.total:.2f}",
+                c.statut,
+                c.source,
+            ])
+        return Response(
+            "﻿" + output.getvalue(),  # BOM UTF-8 pour Excel
+            mimetype="text/csv; charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=commandes_ascale.csv"},
+        )
+
+    @app.route("/admin/clients/export")
+    def export_clients_csv():
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["ID", "Nom", "Email", "Téléphone", "Adresse"])
+        for c in store.list_clients():
+            writer.writerow([c.id, c.nom, c.email or "", c.telephone or "", c.adresse or ""])
+        return Response(
+            "﻿" + output.getvalue(),
+            mimetype="text/csv; charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=clients_ascale.csv"},
+        )
+
+    # ---------- Chatbot ----------
     def _chatbot_repondre_et_stocker(message):
-        """Calcule la réponse du bot à `message` et l'ajoute (avec le message du
-        client) à l'historique de conversation en session. Partagé par la page
-        /chatbot et le widget flottant, pour que les deux vues restent
-        synchronisées sur le même historique."""
         conversation = session.get("chatbot_conversation", [])
         reponse = chatbot.repondre(store, message)
         conversation.append({"role": "client", "texte": message})
@@ -298,9 +422,6 @@ def register_routes(app):
 
     @app.route("/chatbot/widget/envoyer", methods=["POST"])
     def chatbot_widget_envoyer():
-        """Même logique que /chatbot/envoyer, mais répond en JSON au lieu de
-        rediriger : utilisé par le widget flottant pour que la conversation
-        s'affiche sur place, sans quitter la page en cours."""
         message = request.form.get("message", "").strip()
         if not message:
             return {"erreur": "Message vide."}, 400
@@ -316,12 +437,9 @@ def register_routes(app):
 
     @app.context_processor
     def injecter_widget_chatbot():
-        # Rend l'historique de conversation disponible dans base.html (widget
-        # flottant présent sur toutes les pages) sans devoir le passer
-        # explicitement depuis chaque route.
         return {"conversation_widget": session.get("chatbot_conversation", [])}
 
-    # ---------- Réservation de créneaux (partie publique, sans connexion) ----------
+    # ---------- Réservation ----------
     @app.route("/reservation")
     def reservation_page():
         creneaux_par_jour = [
@@ -342,7 +460,7 @@ def register_routes(app):
         telephone = request.form.get("telephone", "").strip()
         email = request.form.get("email", "").strip()
         if not nom or not telephone or not email:
-            flash("Merci de renseigner votre nom, votre téléphone et votre email.", "error")
+            flash("Merci de renseigner votre nom, téléphone et email.", "error")
             return redirect(url_for("reservation_page"))
         if not EMAIL_REGEX.match(email):
             flash("Merci de renseigner une adresse email valide.", "error")
@@ -358,6 +476,8 @@ def register_routes(app):
         reservation.email_envoye = email_service.envoyer_confirmation_reservation(
             app.mail, reservation, creneau
         )
+        from database import db as _db
+        _db.session.commit()
 
         return redirect(url_for("reservation_confirmee", reservation_id=reservation.id))
 
@@ -373,7 +493,58 @@ def register_routes(app):
             creneau=store.get_creneau(reservation.creneau_id),
         )
 
-    # ---------- Connexion (espace de gestion interne) ----------
+    # ---------- Contact (formulaire + email auto) ----------
+    SUJETS_CONTACT = [
+        "Demande de devis",
+        "Renseignement sur un produit",
+        "Suivi de commande",
+        "Réservation showroom",
+        "Partenariat / Architecture",
+        "Autre",
+    ]
+
+    @app.route("/contact", methods=["GET", "POST"])
+    def contact():
+        if request.method == "POST":
+            nom = request.form.get("nom", "").strip()
+            email = request.form.get("email", "").strip()
+            telephone = request.form.get("telephone", "").strip()
+            sujet = request.form.get("sujet", "").strip()
+            message = request.form.get("message", "").strip()
+
+            if not nom or not email or not message:
+                flash("Merci de renseigner votre nom, email et message.", "error")
+                return render_template("contact.html", sujets=SUJETS_CONTACT)
+            if not EMAIL_REGEX.match(email):
+                flash("Adresse email invalide.", "error")
+                return render_template("contact.html", sujets=SUJETS_CONTACT)
+
+            # Le chatbot tente de pré-répondre au message
+            reponse_bot = chatbot.repondre(store, message)
+            # N'inclure la réponse bot que si elle n'est pas le fallback
+            if "Je n'ai pas compris" in reponse_bot:
+                reponse_bot = None
+
+            email_envoye = email_service.envoyer_contact(
+                app.mail, nom, email, telephone, sujet, message, reponse_bot
+            )
+
+            if email_envoye:
+                flash(
+                    "Votre message a bien été envoyé ! Vous recevrez un accusé de réception par email.",
+                    "success",
+                )
+            else:
+                flash(
+                    "Message enregistré. Nos serveurs email ne sont pas encore configurés — "
+                    "contactez-nous directement au +212 5 22 XX XX XX.",
+                    "info",
+                )
+            return redirect(url_for("contact"))
+
+        return render_template("contact.html", sujets=SUJETS_CONTACT)
+
+    # ---------- Connexion ----------
     @app.route("/connexion", methods=["GET", "POST"])
     def connexion():
         if request.method == "POST":
@@ -396,11 +567,11 @@ def register_routes(app):
         flash("Vous êtes déconnecté.", "success")
         return redirect(url_for("index"))
 
-    # ---------- Gestion des réservations (partie interne, protégée) ----------
+    # ---------- Admin réservations ----------
     @app.route("/admin/reservations")
     @login_required
     def admin_reservations():
-        creneaux_par_id = {c.id: c for c in store.list_creneaux()}
+        creneaux_par_id = {c.id: c for c in store.list_tous_creneaux()}
         return render_template(
             "admin_reservations.html",
             reservations=store.list_reservations(),
@@ -414,7 +585,7 @@ def register_routes(app):
         flash("Réservation annulée, le créneau est de nouveau disponible.", "success")
         return redirect(url_for("admin_reservations"))
 
-    # ---------- Webhook WhatsApp Business (prêt, inactif tant que non configuré) ----------
+    # ---------- Webhook WhatsApp Business ----------
     @app.route("/webhook/whatsapp", methods=["GET"])
     def whatsapp_verifier():
         mode = request.args.get("hub.mode")
@@ -430,13 +601,20 @@ def register_routes(app):
 
     @app.route("/webhook/whatsapp", methods=["POST"])
     def whatsapp_recevoir():
-        # Le compte WhatsApp Business n'est pas encore configuré : ce webhook
-        # ne fait rien tant que whatsapp_config.api_configuree() est False.
-        # Une fois les identifiants renseignés, il suffira de parser le
-        # payload Meta ici, appeler chatbot.repondre(store, texte_recu) puis
-        # whatsapp_config.envoyer_message(expediteur, reponse).
         if not whatsapp_config.api_configuree():
             return "", 200
+
+        data = request.get_json(silent=True) or {}
+        try:
+            entry = data["entry"][0]["changes"][0]["value"]
+            msg = entry["messages"][0]
+            expediteur = msg["from"]
+            texte = msg["text"]["body"]
+        except (KeyError, IndexError):
+            return "", 200
+
+        reponse = chatbot.repondre(store, texte, expediteur=expediteur)
+        whatsapp_config.envoyer_message(expediteur, reponse)
         return "", 200
 
 

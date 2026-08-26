@@ -1,0 +1,154 @@
+{% extends "base_public.html" %}
+{% block title %}Commande confirmée — Ascale{% endblock %}
+
+{% block content %}
+<section class="pub-section pub-page-header">
+    <div class="pub-section-header reveal">
+        <div class="pub-eyebrow">Commande enregistrée</div>
+        <h1 class="pub-section-title">Merci pour votre commande !</h1>
+        <p class="pub-section-text">
+            Votre commande n°{{ commande.id }} a bien été reçue.
+            Notre équipe vous contactera dans les 24h pour confirmer les détails.
+        </p>
+    </div>
+</section>
+
+<section class="pub-section pub-section-narrow" style="padding-top: 0;">
+    <div class="pub-confirmation-card reveal">
+        <div class="pub-confirmation-header">
+            <span class="pub-confirmation-icon">✓</span>
+            <div>
+                <div class="pub-confirmation-ref">Commande n°{{ commande.id }}</div>
+                <div class="pub-confirmation-client">{{ commande.client_nom }}</div>
+                <div class="pub-confirmation-date">{{ commande.date.strftime('%d/%m/%Y à %Hh%M') }}</div>
+            </div>
+        </div>
+
+        <div class="pub-confirmation-lignes">
+            <h3 class="pub-confirmation-titre-section">Récapitulatif</h3>
+            {% for ligne in commande.lignes %}
+            <div class="pub-confirmation-ligne">
+                <span class="pub-confirmation-produit">{{ ligne.produit_nom }}</span>
+                <span class="pub-confirmation-qty">{{ ligne.quantite }} m²</span>
+                <span class="pub-confirmation-prix">{{ ligne.sous_total | int }} MAD</span>
+            </div>
+            {% endfor %}
+            <div class="pub-confirmation-total">
+                <span>Total estimé</span>
+                <span>{{ commande.total | int }} MAD</span>
+            </div>
+        </div>
+
+        <div class="pub-confirmation-etapes">
+            <h3 class="pub-confirmation-titre-section">Prochaines étapes</h3>
+            <ol class="pub-etapes-liste">
+                <li>
+                    <span class="pub-etape-num">1</span>
+                    <span>Notre équipe vérifie la disponibilité et vous contacte sous 24h</span>
+                </li>
+                <li>
+                    <span class="pub-etape-num">2</span>
+                    <span>Validation de votre commande et devis officiel envoyé par email</span>
+                </li>
+                <li>
+                    <span class="pub-etape-num">3</span>
+                    <span>Acompte de 30% à la confirmation — livraison ou retrait showroom</span>
+                </li>
+            </ol>
+        </div>
+
+        <div class="pub-confirmation-contact">
+            <p>Une question ? Contactez-nous :</p>
+            <a href="tel:+21252200000" class="pub-confirmation-tel">📞 +212 5 22 XX XX XX</a>
+            <a href="mailto:contact@ascale.ma" class="pub-confirmation-email">✉️ contact@ascale.ma</a>
+        </div>
+    </div>
+
+    <div class="pub-confirmation-actions reveal">
+        <a href="{{ url_for('accueil') }}" class="pub-btn pub-btn-gold">Retour à l'accueil</a>
+        <a href="{{ url_for('nos_materiaux') }}" class="pub-btn pub-btn-outline">Voir le catalogue</a>
+        <a href="{{ url_for('chatbot_page') }}" class="pub-btn pub-btn-outline">Poser une question</a>
+    </div>
+</section>
+
+<style>
+.pub-confirmation-card {
+    background: var(--clr-surface, #faf9f6);
+    border: 1px solid var(--clr-border, #e0ddd6);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+.pub-confirmation-header {
+    display: flex; align-items: center; gap: 1.5rem;
+    background: var(--clr-anthracite, #1a1a1a); color: #fff;
+    padding: 1.5rem 2rem;
+}
+
+.pub-confirmation-icon {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--clr-gold, #c9a96e);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem; font-weight: 700; flex-shrink: 0;
+}
+
+.pub-confirmation-ref { font-size: 1.1rem; font-weight: 700; color: var(--clr-gold, #c9a96e); }
+.pub-confirmation-client { font-size: 1rem; margin-top: .2rem; }
+.pub-confirmation-date { font-size: .8rem; opacity: .6; margin-top: .2rem; }
+
+.pub-confirmation-lignes { padding: 1.5rem 2rem; border-bottom: 1px solid var(--clr-border, #e0ddd6); }
+.pub-confirmation-titre-section {
+    font-size: .8rem; text-transform: uppercase; letter-spacing: .1em;
+    color: #888; margin-bottom: 1rem;
+}
+
+.pub-confirmation-ligne {
+    display: flex; align-items: center; gap: 1rem;
+    padding: .6rem 0;
+    border-bottom: 1px solid rgba(0,0,0,.05);
+}
+.pub-confirmation-produit { flex: 1; font-size: .95rem; }
+.pub-confirmation-qty { font-size: .85rem; color: #666; min-width: 50px; text-align: center; }
+.pub-confirmation-prix { font-weight: 600; min-width: 90px; text-align: right; }
+
+.pub-confirmation-total {
+    display: flex; justify-content: space-between;
+    padding-top: 1rem; margin-top: .5rem;
+    font-size: 1.05rem; font-weight: 700;
+    color: var(--clr-gold, #c9a96e);
+}
+
+.pub-confirmation-etapes { padding: 1.5rem 2rem; border-bottom: 1px solid var(--clr-border, #e0ddd6); }
+.pub-etapes-liste { list-style: none; padding: 0; display: flex; flex-direction: column; gap: .9rem; }
+.pub-etapes-liste li { display: flex; align-items: flex-start; gap: .8rem; font-size: .9rem; line-height: 1.4; }
+.pub-etape-num {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--clr-gold, #c9a96e); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .75rem; font-weight: 700; flex-shrink: 0; margin-top: .1rem;
+}
+
+.pub-confirmation-contact {
+    padding: 1.25rem 2rem;
+    display: flex; align-items: center; flex-wrap: wrap; gap: 1rem;
+    font-size: .9rem; color: #555;
+}
+.pub-confirmation-tel, .pub-confirmation-email {
+    color: var(--clr-gold, #c9a96e); text-decoration: none; font-weight: 600;
+}
+.pub-confirmation-tel:hover, .pub-confirmation-email:hover { text-decoration: underline; }
+
+.pub-confirmation-actions {
+    display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center;
+    margin-bottom: 3rem;
+}
+
+.pub-btn-outline {
+    background: transparent;
+    border: 1.5px solid var(--clr-anthracite, #1a1a1a);
+    color: var(--clr-anthracite, #1a1a1a);
+}
+.pub-btn-outline:hover { background: var(--clr-anthracite, #1a1a1a); color: #fff; }
+</style>
+{% endblock %}

@@ -1,0 +1,346 @@
+{% extends "base_public.html" %}
+{% block title %}Commander — Ascale{% endblock %}
+
+{% block content %}
+<section class="pub-section pub-page-header">
+    <div class="pub-section-header reveal">
+        <div class="pub-eyebrow">Boutique en ligne</div>
+        <h1 class="pub-section-title">Passer une commande</h1>
+        <p class="pub-section-text">
+            Sélectionnez vos matériaux, indiquez les surfaces souhaitées et renseignez vos
+            coordonnées. Nous vous confirmons votre commande dans les 24h.
+        </p>
+    </div>
+</section>
+
+<section class="pub-section pub-section-narrow" style="padding-top: 0;">
+    <form method="post" action="{{ url_for('commander') }}" class="reveal" id="form-commande">
+
+        <!-- Calculateur de surface -->
+        <div class="pub-calc reveal">
+            <h2 class="pub-form-step" style="margin-bottom:1rem;">0. Calculer votre surface (optionnel)</h2>
+            <p class="pub-calc-intro">Entrez les dimensions de votre pièce pour estimer la quantité de matériaux.</p>
+            <div class="pub-calc-grid">
+                <div class="pub-calc-piece">
+                    <label class="pub-calc-label">Pièce</label>
+                    <select id="calc-piece" class="pub-calc-input" onchange="calcSelect()">
+                        <option value="">-- Choisir --</option>
+                        <option value="salon">Salon</option>
+                        <option value="cuisine">Cuisine</option>
+                        <option value="salle_de_bain">Salle de bain</option>
+                        <option value="chambre">Chambre</option>
+                        <option value="couloir">Couloir</option>
+                        <option value="terrasse">Terrasse</option>
+                        <option value="autre">Autre</option>
+                    </select>
+                </div>
+                <div class="pub-calc-dim">
+                    <label class="pub-calc-label">Longueur (m)</label>
+                    <input type="number" id="calc-long" class="pub-calc-input" min="0.1" step="0.01" placeholder="ex: 5.0" oninput="calculerSurface()">
+                </div>
+                <div class="pub-calc-dim">
+                    <label class="pub-calc-label">Largeur (m)</label>
+                    <input type="number" id="calc-larg" class="pub-calc-input" min="0.1" step="0.01" placeholder="ex: 4.5" oninput="calculerSurface()">
+                </div>
+                <div class="pub-calc-dim">
+                    <label class="pub-calc-label">Perte / chutes (%)</label>
+                    <input type="number" id="calc-perte" class="pub-calc-input" min="0" max="30" value="10" oninput="calculerSurface()">
+                </div>
+            </div>
+            <div id="calc-resultat" class="pub-calc-resultat" style="display:none;">
+                <span class="pub-calc-res-label">Surface totale (avec pertes)</span>
+                <span class="pub-calc-res-value" id="calc-surface">— m²</span>
+                <button type="button" class="pub-calc-apply" onclick="appliquerSurface()">
+                    Appliquer aux matériaux sélectionnés →
+                </button>
+            </div>
+        </div>
+
+        <h2 class="pub-form-step">1. Choisissez vos matériaux</h2>
+
+        {% if not produits %}
+        <p class="pub-empty">Aucun produit disponible pour le moment. Contactez-nous directement.</p>
+        {% else %}
+        <div class="pub-commande-produits">
+            {% for produit in produits %}
+            <div class="pub-commande-ligne" id="ligne-{{ produit.id }}">
+                <label class="pub-commande-check">
+                    <input type="checkbox" class="prod-check" data-id="{{ produit.id }}"
+                           data-prix="{{ produit.prix }}" data-nom="{{ produit.nom }}">
+                    <span class="pub-commande-swatch {{ produit.nom | swatch }}"></span>
+                    <span class="pub-commande-info">
+                        <strong>{{ produit.nom }}</strong>
+                        <span class="pub-commande-prix">{{ produit.prix | int }} MAD/m²</span>
+                        {% if produit.stock > 0 %}
+                        <span class="pub-commande-stock pub-stock-ok">{{ produit.stock }} m² en stock</span>
+                        {% else %}
+                        <span class="pub-commande-stock pub-stock-vide">Rupture de stock</span>
+                        {% endif %}
+                    </span>
+                </label>
+                <div class="pub-commande-qty" style="display:none;">
+                    <input type="hidden" name="produit_id" value="{{ produit.id }}" disabled>
+                    <div class="pub-qty-wrap">
+                        <button type="button" class="pub-qty-btn" onclick="changerQty({{ produit.id }}, -1)">−</button>
+                        <input type="number" name="quantite" class="pub-qty-input" id="qty-{{ produit.id }}"
+                               value="1" min="1" max="{{ produit.stock }}"
+                               onchange="mettreAJourTotal()" disabled>
+                        <button type="button" class="pub-qty-btn" onclick="changerQty({{ produit.id }}, 1)">+</button>
+                        <span class="pub-qty-unite">m²</span>
+                    </div>
+                    <span class="pub-commande-sous-total" id="sous-total-{{ produit.id }}">0 MAD</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="pub-commande-total reveal" id="bloc-total" style="display:none;">
+            <span class="pub-total-label">Total estimé</span>
+            <span class="pub-total-montant" id="total-affiche">0 MAD</span>
+            <p class="pub-total-note">Prix en MAD/m² HT — devis définitif confirmé par notre équipe.</p>
+        </div>
+        {% endif %}
+
+        <h2 class="pub-form-step">2. Vos coordonnées</h2>
+        <div class="pub-field">
+            <input type="text" name="nom" id="nom" placeholder=" " required>
+            <label for="nom">Nom complet *</label>
+        </div>
+        <div class="pub-field">
+            <input type="tel" name="telephone" id="telephone" placeholder=" " required>
+            <label for="telephone">Téléphone *</label>
+        </div>
+        <div class="pub-field">
+            <input type="email" name="email" id="email" placeholder=" " required>
+            <label for="email">Email *</label>
+        </div>
+        <div class="pub-field">
+            <textarea name="adresse" id="adresse" placeholder=" " rows="2"></textarea>
+            <label for="adresse">Adresse de livraison (optionnel)</label>
+        </div>
+
+        <button type="submit" class="pub-btn pub-btn-gold pub-btn-block" id="btn-submit" disabled>
+            Envoyer ma commande
+        </button>
+        <p class="pub-form-note">
+            * Champs obligatoires. Votre commande sera confirmée par email dans les 24h.
+        </p>
+    </form>
+</section>
+
+<style>
+.pub-commande-produits { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2rem; }
+
+.pub-commande-ligne {
+    border: 1px solid var(--clr-border, #e0ddd6);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color .2s;
+}
+.pub-commande-ligne.active { border-color: var(--clr-gold, #c9a96e); }
+
+.pub-commande-check {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 1rem 1.2rem; cursor: pointer;
+    background: var(--clr-surface, #faf9f6);
+}
+.pub-commande-check input[type="checkbox"] {
+    width: 18px; height: 18px; accent-color: var(--clr-gold, #c9a96e); cursor: pointer;
+}
+
+.pub-commande-swatch {
+    width: 48px; height: 48px; border-radius: 6px; flex-shrink: 0;
+}
+
+.pub-commande-info { display: flex; flex-direction: column; gap: .2rem; flex: 1; }
+.pub-commande-info strong { font-size: .95rem; }
+.pub-commande-prix { font-size: .85rem; color: var(--clr-gold, #c9a96e); font-weight: 600; }
+.pub-commande-stock { font-size: .75rem; }
+.pub-stock-ok { color: #2e7d32; }
+.pub-stock-vide { color: #c62828; }
+
+.pub-commande-qty {
+    display: flex; align-items: center; gap: 1rem;
+    padding: .75rem 1.2rem; background: #fff;
+    border-top: 1px solid var(--clr-border, #e0ddd6);
+    flex-wrap: wrap;
+}
+
+.pub-qty-wrap { display: flex; align-items: center; gap: .5rem; }
+.pub-qty-btn {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid var(--clr-gold, #c9a96e);
+    background: transparent; color: var(--clr-gold, #c9a96e);
+    font-size: 1.2rem; cursor: pointer; line-height: 1;
+    transition: background .15s, color .15s;
+}
+.pub-qty-btn:hover { background: var(--clr-gold, #c9a96e); color: #fff; }
+.pub-qty-input {
+    width: 64px; text-align: center; border: 1px solid #ddd; border-radius: 4px;
+    padding: .3rem .5rem; font-size: .95rem;
+}
+.pub-qty-unite { font-size: .85rem; color: #666; }
+.pub-commande-sous-total {
+    margin-left: auto; font-weight: 700; color: var(--clr-gold, #c9a96e); font-size: 1rem;
+}
+
+.pub-commande-total {
+    background: var(--clr-anthracite, #1a1a1a); color: #fff;
+    border-radius: 10px; padding: 1.25rem 1.5rem;
+    display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+    margin-bottom: 2.5rem;
+}
+.pub-total-label { font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; opacity: .7; }
+.pub-total-montant { font-size: 1.8rem; font-weight: 700; color: var(--clr-gold, #c9a96e); }
+.pub-total-note { font-size: .78rem; opacity: .55; margin: 0; flex-basis: 100%; }
+
+.pub-form-note { font-size: .8rem; color: #888; text-align: center; margin-top: .75rem; }
+
+#btn-submit:disabled { opacity: .45; cursor: not-allowed; }
+
+textarea.pub-field ~ label, textarea ~ label { top: .9rem !important; }
+
+/* Calculateur */
+.pub-calc {
+    background: var(--clr-surface, #faf9f6);
+    border: 1px solid var(--clr-border, #e0ddd6);
+    border-radius: 12px; padding: 1.5rem; margin-bottom: 2.5rem;
+}
+.pub-calc-intro { font-size: .875rem; color: #666; margin-bottom: 1rem; }
+.pub-calc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.pub-calc-label { display: block; font-size: .78rem; font-weight: 600; color: #555; margin-bottom: .35rem; text-transform: uppercase; letter-spacing: .05em; }
+.pub-calc-input {
+    width: 100%; padding: .5rem .75rem; border: 1px solid #d8d4cc; border-radius: 6px;
+    font-size: .9rem; background: #fff;
+}
+.pub-calc-resultat {
+    display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
+    background: var(--clr-anthracite, #1a1a1a); color: #fff;
+    border-radius: 8px; padding: 1rem 1.25rem; margin-top: 1rem;
+}
+.pub-calc-res-label { font-size: .8rem; opacity: .65; text-transform: uppercase; letter-spacing: .06em; }
+.pub-calc-res-value { font-size: 1.6rem; font-weight: 700; color: var(--clr-gold, #c9a96e); }
+.pub-calc-apply {
+    margin-left: auto; padding: .5rem 1rem; border-radius: 6px;
+    background: var(--clr-gold, #c9a96e); color: #fff; border: none; cursor: pointer;
+    font-size: .85rem; font-weight: 600; transition: opacity .15s;
+}
+.pub-calc-apply:hover { opacity: .85; }
+</style>
+
+<script>
+var _surfaceCalc = 0;
+
+function calcSelect() {
+    /* pré-remplit des dimensions typiques selon la pièce */
+    var presets = {
+        salon: [5.0, 4.0], cuisine: [4.0, 3.0], salle_de_bain: [2.5, 2.0],
+        chambre: [4.0, 3.5], couloir: [6.0, 1.2], terrasse: [4.0, 3.0]
+    };
+    var piece = document.getElementById('calc-piece').value;
+    if (presets[piece]) {
+        document.getElementById('calc-long').value = presets[piece][0];
+        document.getElementById('calc-larg').value = presets[piece][1];
+        calculerSurface();
+    }
+}
+
+function calculerSurface() {
+    var l = parseFloat(document.getElementById('calc-long').value) || 0;
+    var la = parseFloat(document.getElementById('calc-larg').value) || 0;
+    var perte = parseFloat(document.getElementById('calc-perte').value) || 0;
+    var res = document.getElementById('calc-resultat');
+
+    if (l > 0 && la > 0) {
+        _surfaceCalc = Math.ceil(l * la * (1 + perte / 100) * 100) / 100;
+        document.getElementById('calc-surface').textContent = _surfaceCalc.toFixed(2) + ' m²';
+        res.style.display = 'flex';
+    } else {
+        res.style.display = 'none';
+        _surfaceCalc = 0;
+    }
+}
+
+function appliquerSurface() {
+    if (_surfaceCalc <= 0) return;
+    var checked = document.querySelectorAll('.prod-check:checked');
+    if (checked.length === 0) {
+        alert('Cochez d'abord les matériaux souhaités pour appliquer la surface.');
+        return;
+    }
+    checked.forEach(function(cb) {
+        var id = cb.dataset.id;
+        var input = document.getElementById('qty-' + id);
+        if (input && !input.disabled) {
+            var qty = Math.max(1, Math.ceil(_surfaceCalc));
+            input.value = qty;
+        }
+    });
+    mettreAJourTotal();
+}
+
+const PRIX = {};
+{% for p in produits %}PRIX[{{ p.id }}] = {{ p.prix }};{% endfor %}
+
+document.querySelectorAll('.prod-check').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+        var id = this.dataset.id;
+        var ligne = document.getElementById('ligne-' + id);
+        var qtyDiv = ligne.querySelector('.pub-commande-qty');
+        var hiddenId = qtyDiv.querySelector('input[name="produit_id"]');
+        var qtyInput = document.getElementById('qty-' + id);
+
+        if (this.checked) {
+            ligne.classList.add('active');
+            qtyDiv.style.display = 'flex';
+            hiddenId.disabled = false;
+            qtyInput.disabled = false;
+        } else {
+            ligne.classList.remove('active');
+            qtyDiv.style.display = 'none';
+            hiddenId.disabled = true;
+            qtyInput.disabled = true;
+        }
+        mettreAJourTotal();
+    });
+});
+
+function changerQty(id, delta) {
+    var input = document.getElementById('qty-' + id);
+    var val = parseInt(input.value || '1') + delta;
+    if (val < 1) val = 1;
+    if (input.max && val > parseInt(input.max)) val = parseInt(input.max);
+    input.value = val;
+    mettreAJourTotal();
+}
+
+function mettreAJourTotal() {
+    var total = 0;
+    var nbActifs = 0;
+
+    document.querySelectorAll('.prod-check:checked').forEach(function(cb) {
+        var id = cb.dataset.id;
+        var qty = parseInt(document.getElementById('qty-' + id).value || '0');
+        var prix = PRIX[id] || 0;
+        var sousTotal = prix * qty;
+        total += sousTotal;
+        nbActifs++;
+        document.getElementById('sous-total-' + id).textContent =
+            sousTotal.toLocaleString('fr-MA') + ' MAD';
+    });
+
+    var blocTotal = document.getElementById('bloc-total');
+    var btnSubmit = document.getElementById('btn-submit');
+
+    if (nbActifs > 0) {
+        blocTotal.style.display = 'flex';
+        document.getElementById('total-affiche').textContent =
+            total.toLocaleString('fr-MA') + ' MAD';
+        btnSubmit.disabled = false;
+    } else {
+        blocTotal.style.display = 'none';
+        btnSubmit.disabled = true;
+    }
+}
+</script>
+{% endblock %}

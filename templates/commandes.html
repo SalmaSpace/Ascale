@@ -1,11 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
-<h1><i data-feather="shopping-bag" class="icon icon-lg"></i> Commandes</h1>
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:.75rem;">
+    <h1 style="margin:0;"><i data-feather="shopping-bag" class="icon icon-lg"></i> Commandes</h1>
+    <a href="{{ url_for('export_commandes_csv') }}" class="btn btn-sm" style="text-decoration:none;">
+        <i data-feather="download" class="icon icon-sm"></i> Export CSV
+    </a>
+</div>
 
 {% if commandes %}
 <table>
     <thead>
-        <tr><th>Date</th><th>Client</th><th>Articles</th><th>Total</th><th></th></tr>
+        <tr>
+            <th>Date</th>
+            <th>Client</th>
+            <th>Articles</th>
+            <th>Total</th>
+            <th>Canal</th>
+            <th>Statut</th>
+            <th></th>
+        </tr>
     </thead>
     <tbody>
         {% for commande in commandes %}
@@ -17,9 +30,26 @@
                     {{ ligne.quantite }} × {{ ligne.produit_nom }}{% if not loop.last %}, {% endif %}
                 {% endfor %}
             </td>
-            <td data-label="Total">{{ "%.2f"|format(commande.total) }} MAD</td>
+            <td data-label="Total">{{ "%.0f"|format(commande.total) }} MAD</td>
+            <td data-label="Canal">
+                <span class="badge-canal {% if commande.source == 'public' %}badge-public{% else %}badge-admin{% endif %}">
+                    {{ 'En ligne' if commande.source == 'public' else 'Admin' }}
+                </span>
+            </td>
+            <td data-label="Statut">
+                <form method="post" action="{{ url_for('mettre_a_jour_statut', commande_id=commande.id) }}"
+                      class="form-statut-inline">
+                    <select name="statut" class="select-statut select-{{ commande.statut | lower | replace(' ', '-') }}"
+                            onchange="this.form.submit()" title="Changer le statut">
+                        {% for s in statuts %}
+                        <option value="{{ s }}" {% if s == commande.statut %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </td>
             <td data-label="Actions">
-                <form method="post" action="{{ url_for('supprimer_commande', commande_id=commande.id) }}" onsubmit="return confirm('Supprimer cette commande ? Le stock sera recrédité.');">
+                <form method="post" action="{{ url_for('supprimer_commande', commande_id=commande.id) }}"
+                      onsubmit="return confirm('Supprimer cette commande ? Le stock sera recrédité.');">
                     <button type="submit" class="btn-danger btn-sm">
                         <i data-feather="trash-2" class="icon icon-sm"></i> Supprimer
                     </button>
@@ -32,4 +62,25 @@
 {% else %}
 <p class="empty">Aucune commande pour le moment.</p>
 {% endif %}
+
+<style>
+.form-statut-inline { margin: 0; }
+.select-statut {
+    padding: .25rem .5rem; border-radius: 20px; border: 1.5px solid #ddd;
+    font-size: .78rem; font-weight: 600; cursor: pointer;
+    appearance: auto; -webkit-appearance: auto;
+}
+.select-enregistrée   { background: #e3f2fd; color: #1565c0; border-color: #bbdefb; }
+.select-en-préparation { background: #fff8e1; color: #b45309; border-color: #ffe082; }
+.select-expédiée      { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+.select-livrée        { background: #f3e5f5; color: #6a1b9a; border-color: #ce93d8; }
+.select-annulée       { background: #fce4ec; color: #c62828; border-color: #ef9a9a; }
+
+.badge-canal {
+    display: inline-block; padding: .2rem .55rem; border-radius: 20px;
+    font-size: .75rem; font-weight: 600;
+}
+.badge-public { background: #e8f5e9; color: #2e7d32; }
+.badge-admin  { background: #f5f5f5; color: #555; }
+</style>
 {% endblock %}

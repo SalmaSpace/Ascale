@@ -57,6 +57,66 @@ def envoyer_confirmation_reservation(mail, reservation, creneau) -> bool:
         return False
 
 
+def envoyer_contact(mail, nom, email, telephone, sujet, message, reponse_chatbot=None) -> bool:
+    """Envoie le message de contact à l'entreprise ET un accusé de réception au client.
+
+    La réponse du chatbot est incluse dans l'accusé si elle est pertinente.
+    Ne lève jamais d'exception pour ne pas bloquer le parcours client.
+    """
+    if not mail_configuree():
+        logger.info("Email de contact non envoyé : MAIL_USERNAME/MAIL_PASSWORD absents de .env.")
+        return False
+
+    try:
+        # --- Email interne (notif à l'entreprise) ---
+        corps_interne = (
+            f"Nouveau message de contact\n"
+            f"{'=' * 40}\n"
+            f"Nom      : {nom}\n"
+            f"Email    : {email}\n"
+            f"Téléphone: {telephone or 'Non renseigné'}\n"
+            f"Sujet    : {sujet}\n"
+            f"{'=' * 40}\n\n"
+            f"{message}\n"
+        )
+        msg_interne = Message(
+            subject=f"[Ascale Contact] {sujet} — {nom}",
+            recipients=[MAIL_DEFAULT_SENDER],
+            body=corps_interne,
+            reply_to=email,
+        )
+        mail.send(msg_interne)
+
+        # --- Accusé de réception au client ---
+        corps_client = (
+            f"Bonjour {nom},\n\n"
+            f"Nous avons bien reçu votre message concernant : « {sujet} ».\n"
+            f"Notre équipe vous répondra dans les 24h ouvrées.\n\n"
+        )
+        if reponse_chatbot:
+            corps_client += (
+                f"En attendant, voici une réponse automatique à votre demande :\n\n"
+                f"{reponse_chatbot}\n\n"
+                f"{'─' * 40}\n\n"
+            )
+        corps_client += (
+            f"Votre message :\n{message}\n\n"
+            f"Cordialement,\nL'équipe Ascale\n"
+            f"📞 +212 5 22 XX XX XX | ✉️ contact@ascale.ma"
+        )
+        msg_client = Message(
+            subject="Votre message a bien été reçu — Ascale",
+            recipients=[email],
+            body=corps_client,
+        )
+        mail.send(msg_client)
+        return True
+
+    except Exception:
+        logger.exception("Échec de l'envoi de l'email de contact pour %s", email)
+        return False
+
+
 def _corps_texte(reservation, creneau) -> str:
     if creneau is None:
         creneau_texte = ""
