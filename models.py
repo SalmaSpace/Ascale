@@ -391,65 +391,138 @@ def seed(store: Store) -> None:
         return  # déjà seedé, on ne recrée pas les données
 
     # --- Catégories ---
-    cat_marbre = store.add_categorie("Marbre")
-    cat_granit = store.add_categorie("Granit")
-    cat_onyx = store.add_categorie("Onyx")
+    cat_marbre    = store.add_categorie("Marbre")
+    cat_granit    = store.add_categorie("Granit")
+    cat_onyx      = store.add_categorie("Onyx")
     cat_travertin = store.add_categorie("Travertin")
 
     # --- Clients ---
-    c1 = store.add_client("Karim Benjelloun", "karim.benjelloun@gmail.com", "0661234567")
-    c2 = store.add_client(
-        "Atelier Zellige — Architecture & Design", "contact@atelierzellige.ma", "0522334455"
-    )
-    store.add_client("Nadia El Fassi", "nadia.elfassi@outlook.com", "0662345678")
-    store.add_client("Batico Construction", "contact@batico-construction.ma", "0522556677")
-    store.add_client("Riad Dar Yasmine", "reservation@riaddaryasmine.ma", "0524123456")
+    c1 = store.add_client("Karim Benjelloun",          "karim.benjelloun@gmail.com",       "0661234567")
+    c2 = store.add_client("Atelier Zellige Design",    "contact@atelierzellige.ma",        "0522334455")
+    c3 = store.add_client("Nadia El Fassi",            "nadia.elfassi@outlook.com",        "0662345678")
+    c4 = store.add_client("Batico Construction",       "contact@batico-construction.ma",   "0522556677")
+    c5 = store.add_client("Riad Dar Yasmine",          "reservation@riaddaryasmine.ma",    "0524123456")
+    c6 = store.add_client("Hammou Architecte",         "h.architecte@gmail.com",           "0670112233")
+    c7 = store.add_client("Immo Prestige Casablanca",  "achats@immo-prestige.ma",          "0522778899")
 
-    # --- Produits ---
+    # ── MARBRE (10 références) ──────────────────────────────────────────────
     p1 = store.add_produit(
-        "Marbre Blanc de Carrare", 1850.0, 85,
-        "Italie — dalle premium pour sol, plan de travail et revêtement mural haut de gamme.",
+        "Marbre Blanc de Carrare",    950.0, 85,
+        "Italie — dalle premium pour sol, plan de travail et revêtement mural.",
         categorie_id=cat_marbre.id, seuil_alerte=15,
     )
-    store.add_produit(
-        "Marbre Noir Marquina", 1950.0, 60,
-        "Espagne — sol et plan de travail d'exception, veines blanches sur fond noir.",
+    p2 = store.add_produit(
+        "Marbre Noir Marquina",       1100.0, 60,
+        "Espagne — veines blanches sur fond noir intense, très recherché.",
         categorie_id=cat_marbre.id, seuil_alerte=10,
     )
     p3 = store.add_produit(
-        "Marbre Beige Crema Marfil", 890.0, 120,
-        "Espagne — sol, escalier et habillage mural, teinte beige intemporelle.",
-        categorie_id=cat_marbre.id, seuil_alerte=20,
+        "Marbre Beige Crema Marfil",  420.0, 200,
+        "Espagne — teinte beige chaleureuse, parfait pour sol et escalier.",
+        categorie_id=cat_marbre.id, seuil_alerte=30,
     )
+    store.add_produit(
+        "Marbre Vert Guatemala",      1380.0, 30,
+        "Inde — veines vertes profondes, plan de travail et sol d'exception.",
+        categorie_id=cat_marbre.id, seuil_alerte=5,
+    )
+    store.add_produit(
+        "Marbre Rose Portugal",       720.0, 55,
+        "Portugal — teinte rosée délicate pour sol et habillage mural.",
+        categorie_id=cat_marbre.id, seuil_alerte=8,
+    )
+    store.add_produit(
+        "Marbre Blanc Thassos",       880.0, 40,
+        "Grèce — blanc immaculé pur, translucidité naturelle, salle de bain haut de gamme.",
+        categorie_id=cat_marbre.id, seuil_alerte=8,
+    )
+    store.add_produit(
+        "Marbre Gris Bardiglio",      680.0, 65,
+        "Italie — gris ardoisé avec veinures fines, ambiance contemporaine.",
+        categorie_id=cat_marbre.id, seuil_alerte=10,
+    )
+    store.add_produit(
+        "Marbre Jaune Giallo Siena",  560.0, 50,
+        "Italie — jaune doré et ocre, apporte chaleur et caractère à l'espace.",
+        categorie_id=cat_marbre.id, seuil_alerte=8,
+    )
+    store.add_produit(
+        "Marbre Emperador Dark",      750.0, 45,
+        "Espagne — brun profond veiné de blanc, très élégant pour plan de travail.",
+        categorie_id=cat_marbre.id, seuil_alerte=8,
+    )
+    store.add_produit(
+        "Marbre Blanc Local",         250.0, 300,
+        "Maroc — marbre local économique, idéal pour grands chantiers et revêtements muraux.",
+        categorie_id=cat_marbre.id, seuil_alerte=40,
+    )
+
+    # ── GRANIT (4 références) ───────────────────────────────────────────────
+    p_g1 = store.add_produit(
+        "Granit Noir Absolu",         550.0, 110,
+        "Inde — noir intense et uniforme, plan de travail cuisine, sol à fort trafic.",
+        categorie_id=cat_granit.id, seuil_alerte=15,
+    )
+    store.add_produit(
+        "Granit Gris Baltic Brown",   480.0, 90,
+        "Finlande — gris tacheté brun-or, robuste et résistant aux intempéries.",
+        categorie_id=cat_granit.id, seuil_alerte=12,
+    )
+    store.add_produit(
+        "Granit Rouge India",         520.0, 75,
+        "Inde — rouge vif avec cristaux noirs et gris, sol et façade extérieure.",
+        categorie_id=cat_granit.id, seuil_alerte=10,
+    )
+    store.add_produit(
+        "Granit Bleu Bahia",          780.0, 35,
+        "Brésil — pièce unique aux reflets bleus irisés, comptoir et revêtement prestige.",
+        categorie_id=cat_granit.id, seuil_alerte=5,
+    )
+
+    # ── ONYX (3 références) ─────────────────────────────────────────────────
     p4 = store.add_produit(
-        "Onyx Blanc translucide", 4800.0, 25,
+        "Onyx Blanc Translucide",     2200.0, 25,
         "Iran — revêtement mural rétroéclairé et éléments décoratifs, forte translucidité.",
         categorie_id=cat_onyx.id, seuil_alerte=5,
     )
     store.add_produit(
-        "Marbre Vert Guatemala", 3200.0, 30,
-        "Inde — plan de travail et sol d'exception, veines vertes profondes.",
-        categorie_id=cat_marbre.id, seuil_alerte=5,
+        "Onyx Vert Malachite",        2800.0, 18,
+        "Iran — vert profond marbré, panneaux décoratifs et surfaces de prestige.",
+        categorie_id=cat_onyx.id, seuil_alerte=3,
     )
+    store.add_produit(
+        "Onyx Miel Doré",             1800.0, 22,
+        "Pakistan — teintes miel et ambre rétroéclairées, comptoir et réception hôtelière.",
+        categorie_id=cat_onyx.id, seuil_alerte=4,
+    )
+
+    # ── TRAVERTIN (3 références) ────────────────────────────────────────────
     p6 = store.add_produit(
-        "Travertin Beige", 520.0, 150,
-        "Turquie — sol intérieur et extérieur, terrasse, salle de bain.",
+        "Travertin Beige",            280.0, 200,
+        "Turquie — sol intérieur et extérieur, terrasse, salle de bain, très abordable.",
+        categorie_id=cat_travertin.id, seuil_alerte=30,
+    )
+    store.add_produit(
+        "Travertin Noce",             320.0, 160,
+        "Turquie — teinte brun-noyer chaleureuse, sol et revêtement mural contemporain.",
         categorie_id=cat_travertin.id, seuil_alerte=25,
     )
     store.add_produit(
-        "Marbre Rose Portugal", 1650.0, 45,
-        "Portugal — sol et habillage mural, teinte rosée délicate.",
-        categorie_id=cat_marbre.id, seuil_alerte=8,
-    )
-    store.add_produit(
-        "Granit Noir Absolu", 1100.0, 70,
-        "Inde — plan de travail cuisine, sol à fort trafic, noir intense et uniforme.",
-        categorie_id=cat_granit.id, seuil_alerte=12,
+        "Travertin Silver",           350.0, 120,
+        "Turquie — gris argenté, finition brossée antidérapante, terrasse et piscine.",
+        categorie_id=cat_travertin.id, seuil_alerte=20,
     )
 
     # --- Commandes de démonstration ---
     store.creer_commande(c1.id, [(p1.id, 12), (p4.id, 4)])
-    store.creer_commande(c2.id, [(p6.id, 40), (p3.id, 20)])
+    store.creer_commande(c2.id, [(p6.id, 40), (p3.id, 25)])
+    store.creer_commande(c3.id, [(p2.id, 8), (p_g1.id, 15)])
+    cmd4 = store.creer_commande(c4.id, [(p6.id, 80), (p3.id, 50)])
+    store.mettre_a_jour_statut_commande(cmd4.id, "Expédiée")
+    store.creer_commande(c5.id, [(p1.id, 6)])
+    store.creer_commande(c6.id, [(p2.id, 20), (p4.id, 3)])
+    cmd7 = store.creer_commande(c7.id, [(p_g1.id, 30), (p3.id, 60)])
+    store.mettre_a_jour_statut_commande(cmd7.id, "Livrée")
 
     # --- Utilisateur interne ---
     store.add_utilisateur("Nasser", "nasser@ascale.ma", "Marbre2026!", role="gestionnaire")

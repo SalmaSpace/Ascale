@@ -64,7 +64,7 @@ def login_required(vue):
     return wrapper
 
 
-def create_app():
+def create_app(test_config=None):
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-ascale-2026")
 
@@ -79,6 +79,10 @@ def create_app():
     app.config["MAIL_USERNAME"] = email_service.MAIL_USERNAME
     app.config["MAIL_PASSWORD"] = email_service.MAIL_PASSWORD
     app.config["MAIL_DEFAULT_SENDER"] = email_service.MAIL_DEFAULT_SENDER
+
+    # Surcharge pour les tests (ex. base in-memory, mail supprimé)
+    if test_config:
+        app.config.update(test_config)
 
     db.init_app(app)
     app.mail = Mail(app)

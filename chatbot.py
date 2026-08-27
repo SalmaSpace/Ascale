@@ -18,9 +18,45 @@ Intents gérés (ordre de priorité) :
  10. Fallback
 """
 
+import json
+import logging
+import os
 import re
 import unicodedata
+import urllib.error
+import urllib.request
 from itertools import count
+
+_logger = logging.getLogger(__name__)
+
+# ── OpenRouter LLM (fallback quand aucun intent ne correspond) ──────────────
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+OPENROUTER_MODEL   = os.environ.get("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct:free")
+
+_SYSTEM_PROMPT = """\
+Tu es l'assistant virtuel d'Ascale, importateur marocain de matériaux de prestige \
+(marbre, granit, onyx, travertin).
+
+Catalogue actuel Ascale :
+{catalogue}
+
+Tes attributions :
+• Conseiller sur les matériaux naturels (marbre, granit, onyx, travertin) et leurs propriétés
+• Recommander le bon matériau selon la pièce, l'usage ou le style souhaité
+• Répondre sur l'entretien, la pose, la résistance, la durabilité des pierres naturelles
+• Donner des conseils en décoration intérieure et architecture utilisant des pierres naturelles
+• Informer sur les tendances du secteur (finitions, formats, combinaisons de matériaux)
+• Expliquer les différences entre types de pierres naturelles
+
+Périmètre strict : tu réponds UNIQUEMENT aux questions liées aux matériaux de construction, \
+à la décoration intérieure, à l'architecture ou à l'entretien des pierres naturelles. \
+Pour toute question hors de ce périmètre, réponds exactement : \
+"Je suis spécialisé dans les matériaux de construction et la décoration intérieure. \
+Pour toute autre question, notre équipe est disponible au +212 5 22 XX XX XX."
+
+Langue : toujours en français. Style : professionnel, chaleureux, concis (3–5 phrases max). \
+Pas de mention de concurrents. Émojis appropriés avec parcimonie.\
+"""
 
 _devis_ids = count(1)
 
@@ -84,6 +120,61 @@ EXEMPLES = (
     "quels sont vos horaires ?",
     "je veux réserver une visite",
 )
+
+
+def _tenter_llm(store, message_original: str):
+    """Appelle OpenRouter si la clé est configurée.
+
+    Retourne la réponse LLM (str) ou None si la clé est absente / en cas d'erreur.
+    Passe le message original (non normalisé) au LLM pour préserver les accents
+    et la casse, ce qui améliore la compréhension.
+    """
+    if not OPENROUTER_API_KEY:
+        return None
+
+    # Contexte catalogue temps réel injecté dans le system prompt
+    try:
+        produits = store.list_produits()
+        lignes_cat = [
+            f"- {p.nom}"
+            f" ({p.categorie.nom if p.categorie else 'N/A'})"
+            f" : {p.prix:.0f} MAD/m², {p.stock} m² en stock"
+            for p in produits
+        ]
+        catalogue_str = "\n".join(lignes_cat) if lignes_cat else "Catalogue non disponible."
+    except Exception:
+        catalogue_str = "Catalogue non disponible."
+
+    payload = json.dumps({
+        "model": OPENROUTER_MODEL,
+        "messages": [
+            {"role": "system", "content": _SYSTEM_PROMPT.format(catalogue=catalogue_str)},
+            {"role": "user",   "content": message_original},
+        ],
+        "max_tokens": 350,
+        "temperature": 0.6,
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        "https://openrouter.ai/api/v1/chat/completions",
+        data=payload,
+        headers={
+            "Authorization":  f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type":   "application/json",
+            "HTTP-Referer":   "https://ascale.ma",
+            "X-Title":        "Ascale Chatbot",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            content = data["choices"][0]["message"]["content"].strip()
+            return content or None
+    except Exception:
+        _logger.warning("OpenRouter LLM fallback indisponible", exc_info=True)
+        return None
 
 
 def _sans_accents(texte: str) -> str:
@@ -412,7 +503,7 @@ def _tenter_recommandation(store, texte):
 def _tenter_budget(store, texte):
     # Budget avec montant explicite
     match = re.search(
-        r"(?:budget|moins de|max|sous|jusqu[a-z]*)\s*(\d[\d\s.,]*)\s*(?:mad|dh)?",
+        r"(?:budget|moins de|max|sous|jusqu[a-z]*)(?:\s+de)?\s*(\d[\d\s.,]*)\s*(?:mad|dh)?",
         texte
     )
     if match:
@@ -545,7 +636,12 @@ def repondre(store, message: str, expediteur: str = "") -> str:
         if reponse:
             return reponse
 
-    # Fallback enrichi
+    # Fallback LLM — si OpenRouter est configuré, on lui passe la main
+    reponse_llm = _tenter_llm(store, message)
+    if reponse_llm:
+        return reponse_llm
+
+    # Fallback final (clé absente ou LLM indisponible)
     return (
         "🤔 Je n'ai pas compris votre demande.\n\n"
         + MESSAGE_AIDE
