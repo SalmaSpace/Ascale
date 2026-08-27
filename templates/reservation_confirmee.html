@@ -22,16 +22,16 @@
             <div class="pub-notif pub-notif-reelle">
                 <i data-feather="mail" class="pub-icon-sm"></i>
                 <div>
-                    <strong>Email envoyé</strong>
-                    <p>Un email de confirmation a été envoyé à {{ reservation.client_email }}.</p>
+                    <strong>Email de confirmation envoyé</strong>
+                    <p>Un récapitulatif a été envoyé à <strong>{{ reservation.client_email }}</strong>.</p>
                 </div>
             </div>
             {% else %}
             <div class="pub-notif pub-notif-attente">
                 <i data-feather="mail" class="pub-icon-sm"></i>
                 <div>
-                    <strong>Email non envoyé</strong>
-                    <p>L'envoi automatique à {{ reservation.client_email }} n'est pas encore configuré côté serveur.</p>
+                    <strong>Confirmation par email</strong>
+                    <p>Un récapitulatif sera envoyé à <strong>{{ reservation.client_email }}</strong> dans les plus brefs délais.</p>
                 </div>
             </div>
             {% endif %}
