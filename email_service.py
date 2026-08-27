@@ -117,6 +117,71 @@ def envoyer_contact(mail, nom, email, telephone, sujet, message, reponse_chatbot
         return False
 
 
+def envoyer_facture_commande(mail, commande, client, pdf_bytes: bytes) -> bool:
+    """Envoie la facture PDF en pièce jointe au client + notification interne.
+
+    Ne lève jamais d'exception pour ne pas bloquer la confirmation de commande.
+    """
+    if not mail_configuree():
+        logger.info("Facture non envoyée : MAIL_USERNAME/MAIL_PASSWORD absents de .env.")
+        return False
+
+    nom_fichier = f"facture_ascale_{commande.id:04d}.pdf"
+    email_client = client.email if client else None
+
+    try:
+        # ── Email client avec facture jointe ──────────────────────
+        if email_client:
+            corps = (
+                f"Bonjour {commande.client_nom},\n\n"
+                f"Votre commande n°{commande.id} a bien été enregistrée.\n"
+                f"Veuillez trouver ci-joint votre facture pro forma.\n\n"
+                f"Récapitulatif :\n"
+            )
+            for l in commande.lignes:
+                corps += f"  • {l.quantite} m² de {l.produit_nom} — {l.sous_total:.0f} MAD\n"
+            corps += (
+                f"\nTotal : {commande.total:.0f} MAD\n\n"
+                "Notre équipe vous contactera sous 24h pour confirmer les modalités.\n"
+                "Aucun débit n'a été effectué — règlement à la confirmation.\n\n"
+                "Cordialement,\nL'équipe Ascale\n"
+                "📞 +212 5 22 XX XX XX | ✉️ contact@ascale.ma"
+            )
+            msg = Message(
+                subject=f"Votre commande Ascale n°{commande.id} — Facture pro forma",
+                recipients=[email_client],
+                body=corps,
+            )
+            msg.attach(nom_fichier, "application/pdf", pdf_bytes)
+            mail.send(msg)
+
+        # ── Notification interne ──────────────────────────────────
+        produits_str = " | ".join(
+            f"{l.quantite}m² {l.produit_nom}" for l in commande.lignes
+        )
+        corps_interne = (
+            f"Nouvelle commande publique n°{commande.id}\n"
+            f"Client : {commande.client_nom}\n"
+            f"Email  : {email_client or 'Non renseigné'}\n"
+            f"Tél.   : {client.telephone if client else 'Non renseigné'}\n"
+            f"Adresse: {client.adresse if client else 'Non renseignée'}\n"
+            f"Produits : {produits_str}\n"
+            f"Total  : {commande.total:.0f} MAD\n"
+        )
+        msg_interne = Message(
+            subject=f"[Ascale] Nouvelle commande n°{commande.id} — {commande.client_nom}",
+            recipients=[MAIL_DEFAULT_SENDER],
+            body=corps_interne,
+        )
+        msg_interne.attach(nom_fichier, "application/pdf", pdf_bytes)
+        mail.send(msg_interne)
+        return True
+
+    except Exception:
+        logger.exception("Échec envoi facture commande n°%s", commande.id)
+        return False
+
+
 def _corps_texte(reservation, creneau) -> str:
     if creneau is None:
         creneau_texte = ""

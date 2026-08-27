@@ -1,0 +1,416 @@
+{% extends "base_public.html" %}
+{% block title %}Paiement — Ascale{% endblock %}
+
+{% block content %}
+<section class="pub-section pub-page-header">
+    <div class="pub-section-header reveal">
+        <div class="pub-eyebrow">Étape 2 / 3</div>
+        <h1 class="pub-section-title">Livraison &amp; Paiement</h1>
+        <p class="pub-section-text">Vérifiez votre commande, renseignez l'adresse et choisissez votre mode de règlement.</p>
+    </div>
+</section>
+
+<!-- Indicateur d'étapes -->
+<div class="pay-steps reveal">
+    <div class="pay-step pay-step-done"><span>1</span> Produits</div>
+    <div class="pay-step-sep"></div>
+    <div class="pay-step pay-step-active"><span>2</span> Paiement</div>
+    <div class="pay-step-sep"></div>
+    <div class="pay-step"><span>3</span> Confirmation</div>
+</div>
+
+<section class="pub-section pub-section-narrow" style="padding-top:0;">
+<form method="post" action="{{ url_for('paiement') }}" id="form-paiement" class="reveal">
+
+    <!-- ─── Récapitulatif panier ─────────────────────────── -->
+    <div class="pay-card">
+        <h2 class="pay-card-title">Récapitulatif</h2>
+        <div class="pay-client-info">
+            <span>{{ panier.nom }}</span>
+            <span class="pay-sep">·</span>
+            <span>{{ panier.telephone }}</span>
+            <span class="pay-sep">·</span>
+            <span>{{ panier.email }}</span>
+        </div>
+        <table class="pay-table">
+            <thead>
+                <tr>
+                    <th>Produit</th>
+                    <th class="pay-th-num">Qté (m²)</th>
+                    <th class="pay-th-num">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for l in lignes_recap %}
+                <tr>
+                    <td>{{ l.nom }}</td>
+                    <td class="pay-td-num">{{ l.quantite }}</td>
+                    <td class="pay-td-num">{{ l.sous_total | int }} MAD</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="pay-total-row">
+                    <td colspan="2">Total estimé HT</td>
+                    <td class="pay-td-num">{{ panier.total | int }} MAD</td>
+                </tr>
+            </tfoot>
+        </table>
+        <p class="pay-note-total">Prix indicatifs. Devis officiel confirmé par notre équipe dans les 24h.</p>
+    </div>
+
+    <!-- ─── Adresse de livraison ─────────────────────────── -->
+    <div class="pay-card">
+        <h2 class="pay-card-title">📍 Adresse de livraison</h2>
+
+        <div class="pay-addr-wrap">
+            <div class="pub-field" style="position:relative;">
+                <input type="text" id="adresse-input" name="adresse" placeholder=" "
+                       autocomplete="off" required minlength="10">
+                <label for="adresse-input">Adresse complète *</label>
+                <div id="addr-suggestions" class="addr-suggestions" hidden></div>
+            </div>
+            <div id="addr-status" class="addr-status" hidden></div>
+        </div>
+        <p class="pay-hint">Commencez à saisir — les suggestions sont fournies par OpenStreetMap.</p>
+    </div>
+
+    <!-- ─── Mode de paiement ─────────────────────────────── -->
+    <div class="pay-card">
+        <h2 class="pay-card-title">💳 Mode de paiement</h2>
+        <div class="pay-modes">
+            <label class="pay-mode-option" id="opt-carte">
+                <input type="radio" name="mode_paiement" value="carte" checked>
+                <div class="pay-mode-body">
+                    <span class="pay-mode-icon">💳</span>
+                    <div>
+                        <strong>Carte bancaire</strong>
+                        <span class="pay-mode-sub">Simulation sécurisée</span>
+                    </div>
+                </div>
+            </label>
+            <label class="pay-mode-option" id="opt-virement">
+                <input type="radio" name="mode_paiement" value="virement">
+                <div class="pay-mode-body">
+                    <span class="pay-mode-icon">🏦</span>
+                    <div>
+                        <strong>Virement bancaire</strong>
+                        <span class="pay-mode-sub">RIB fourni par email</span>
+                    </div>
+                </div>
+            </label>
+            <label class="pay-mode-option" id="opt-especes">
+                <input type="radio" name="mode_paiement" value="especes">
+                <div class="pay-mode-body">
+                    <span class="pay-mode-icon">🏛️</span>
+                    <div>
+                        <strong>Espèces au showroom</strong>
+                        <span class="pay-mode-sub">Sur présentation de ce reçu</span>
+                    </div>
+                </div>
+            </label>
+        </div>
+
+        <!-- Détails carte (mode carte) -->
+        <div id="details-carte" class="pay-details-mode">
+            <div class="pay-card-fields">
+                <div class="pub-field pay-card-num">
+                    <input type="text" id="carte-num" placeholder=" " maxlength="19"
+                           autocomplete="cc-number" inputmode="numeric">
+                    <label for="carte-num">Numéro de carte</label>
+                    <span class="pay-card-brand" id="card-brand">💳</span>
+                </div>
+                <div class="pub-field pay-card-name">
+                    <input type="text" id="carte-nom" placeholder=" " autocomplete="cc-name">
+                    <label for="carte-nom">Nom du titulaire</label>
+                </div>
+                <div class="pub-field pay-card-exp">
+                    <input type="text" id="carte-exp" placeholder=" " maxlength="5"
+                           autocomplete="cc-exp" inputmode="numeric">
+                    <label for="carte-exp">MM/AA</label>
+                </div>
+                <div class="pub-field pay-card-cvv">
+                    <input type="text" id="carte-cvv" placeholder=" " maxlength="3"
+                           autocomplete="cc-csc" inputmode="numeric">
+                    <label for="carte-cvv">CVV</label>
+                </div>
+            </div>
+            <p class="pay-secure-note">
+                🔒 Paiement simulé — aucune donnée bancaire n'est transmise ni stockée.
+            </p>
+        </div>
+
+        <!-- Détails virement -->
+        <div id="details-virement" class="pay-details-mode" hidden>
+            <div class="pay-bank-info">
+                <p><strong>RIB Ascale (fourni après confirmation) :</strong></p>
+                <p>Banque : Attijariwafa Bank</p>
+                <p>Titulaire : ASCALE SARL</p>
+                <p>RIB : 007 XXX XXXXXXXXXXXXXXXX XX</p>
+                <p class="pay-bank-note">Mentionnez votre numéro de commande en référence du virement.</p>
+            </div>
+        </div>
+
+        <!-- Détails espèces -->
+        <div id="details-especes" class="pay-details-mode" hidden>
+            <div class="pay-bank-info">
+                <p>📍 <strong>Showroom Ascale</strong> — Zone Industrielle Oukacha, Casablanca</p>
+                <p>🕘 Lundi–Vendredi : 9h–18h &nbsp;|&nbsp; Samedi : 9h–13h</p>
+                <p class="pay-bank-note">Présentez le reçu sur votre téléphone ou imprimé à l'accueil.</p>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="pub-btn pub-btn-gold pub-btn-block" id="btn-payer">
+        <span id="btn-payer-texte">Confirmer la commande</span>
+        <span id="btn-payer-spinner" hidden>⏳ Traitement en cours…</span>
+    </button>
+    <p class="pub-form-note">Votre facture pro forma sera envoyée par email dès confirmation.</p>
+</form>
+</section>
+
+<style>
+/* ── Indicateur étapes ─────────────────────────────── */
+.pay-steps {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0; max-width: 480px; margin: 0 auto 2.5rem; padding: 0 1rem;
+}
+.pay-step {
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .85rem; font-weight: 600; color: #bbb;
+}
+.pay-step span {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #e0ddd6; color: #888;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .8rem; font-weight: 700;
+}
+.pay-step-active { color: var(--clr-anthracite, #1a1a1a); }
+.pay-step-active span { background: var(--clr-gold, #c9a96e); color: #fff; }
+.pay-step-done { color: #2e7d32; }
+.pay-step-done span { background: #2e7d32; color: #fff; }
+.pay-step-sep {
+    flex: 1; height: 2px; background: #e0ddd6; max-width: 60px; margin: 0 .5rem;
+}
+
+/* ── Cartes ────────────────────────────────────────── */
+.pay-card {
+    background: var(--clr-surface, #faf9f6);
+    border: 1px solid var(--clr-border, #e0ddd6);
+    border-radius: 12px; padding: 1.5rem 1.75rem; margin-bottom: 1.5rem;
+}
+.pay-card-title {
+    font-size: 1rem; font-weight: 700; color: var(--clr-anthracite, #1a1a1a);
+    margin-bottom: 1rem; padding-bottom: .75rem;
+    border-bottom: 1px solid var(--clr-border, #e0ddd6);
+}
+.pay-client-info {
+    font-size: .9rem; color: #555; margin-bottom: 1rem;
+    display: flex; flex-wrap: wrap; gap: .4rem; align-items: center;
+}
+.pay-sep { color: #ccc; }
+
+/* ── Tableau récap ─────────────────────────────────── */
+.pay-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.pay-table th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: #888; padding: .4rem 0; border-bottom: 1px solid #e0ddd6; }
+.pay-table td { padding: .55rem 0; border-bottom: 1px solid rgba(0,0,0,.05); }
+.pay-th-num, .pay-td-num { text-align: right; }
+.pay-total-row td { font-weight: 700; color: var(--clr-gold, #c9a96e); font-size: 1rem; padding-top: .9rem; border-bottom: none; }
+.pay-note-total { font-size: .75rem; color: #999; margin-top: .6rem; }
+
+/* ── Adresse ───────────────────────────────────────── */
+.pay-addr-wrap { position: relative; }
+.addr-suggestions {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 200;
+    background: #fff; border: 1px solid #d8d4cc; border-top: none; border-radius: 0 0 8px 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.12); max-height: 240px; overflow-y: auto;
+}
+.addr-suggestion-item {
+    padding: .7rem 1rem; cursor: pointer; font-size: .875rem; border-bottom: 1px solid #f0ede8;
+}
+.addr-suggestion-item:last-child { border-bottom: none; }
+.addr-suggestion-item:hover, .addr-suggestion-item.focused { background: var(--clr-surface, #faf9f6); }
+.addr-suggestion-main { font-weight: 500; }
+.addr-suggestion-sub { font-size: .78rem; color: #888; margin-top: .1rem; }
+.addr-status { padding: .5rem .75rem; border-radius: 6px; font-size: .82rem; margin-top: .4rem; }
+.addr-status.ok { background: #e8f5e9; color: #2e7d32; }
+.addr-status.err { background: #fce4ec; color: #c62828; }
+.pay-hint { font-size: .78rem; color: #999; margin-top: .4rem; }
+
+/* ── Modes paiement ────────────────────────────────── */
+.pay-modes {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: .75rem; margin-bottom: 1.25rem;
+}
+.pay-mode-option { cursor: pointer; }
+.pay-mode-option input { display: none; }
+.pay-mode-body {
+    display: flex; align-items: center; gap: .75rem;
+    padding: .9rem 1rem; border: 2px solid #e0ddd6; border-radius: 10px;
+    background: #fff; transition: border-color .15s, background .15s;
+}
+.pay-mode-option input:checked ~ .pay-mode-body {
+    border-color: var(--clr-gold, #c9a96e);
+    background: #fff8ee;
+}
+.pay-mode-icon { font-size: 1.4rem; }
+.pay-mode-body strong { display: block; font-size: .88rem; }
+.pay-mode-sub { font-size: .75rem; color: #888; }
+
+/* ── Champs carte ──────────────────────────────────── */
+.pay-card-fields {
+    display: grid;
+    grid-template-areas: "num num num num" "name name exp cvv";
+    grid-template-columns: repeat(4, 1fr);
+    gap: .75rem;
+}
+.pay-card-num { grid-area: num; position: relative; }
+.pay-card-name { grid-area: name; grid-column: span 2; }
+.pay-card-exp { grid-area: exp; }
+.pay-card-cvv { grid-area: cvv; }
+.pay-card-brand {
+    position: absolute; right: .75rem; top: 50%; transform: translateY(-50%);
+    font-size: 1.3rem; pointer-events: none;
+}
+.pay-secure-note {
+    font-size: .78rem; color: #666; background: #f0f8f0; border-radius: 6px;
+    padding: .5rem .75rem; margin-top: .75rem;
+}
+
+/* ── Infos virement/espèces ────────────────────────── */
+.pay-bank-info {
+    background: #fff; border: 1px solid #e0ddd6; border-radius: 8px; padding: 1rem 1.25rem;
+    font-size: .9rem; line-height: 1.7;
+}
+.pay-bank-note { color: #888; font-size: .8rem; margin-top: .5rem; }
+
+.pay-details-mode { margin-top: .5rem; }
+</style>
+
+<script>
+/* ── Mode de paiement ────────────────────────────────────── */
+var radios = document.querySelectorAll('input[name="mode_paiement"]');
+var details = {
+    carte: document.getElementById('details-carte'),
+    virement: document.getElementById('details-virement'),
+    especes: document.getElementById('details-especes')
+};
+var btnTexte = document.getElementById('btn-payer-texte');
+var LABELS = { carte: 'Payer {{ panier.total | int }} MAD', virement: 'Confirmer — paiement par virement', especes: 'Confirmer — règlement au showroom' };
+
+function updateMode() {
+    var sel = document.querySelector('input[name="mode_paiement"]:checked');
+    if (!sel) return;
+    Object.values(details).forEach(function(d) { if (d) d.hidden = true; });
+    if (details[sel.value]) details[sel.value].hidden = false;
+    btnTexte.textContent = LABELS[sel.value] || 'Confirmer la commande';
+}
+radios.forEach(function(r) { r.addEventListener('change', updateMode); });
+updateMode();
+
+/* ── Formatage numéro de carte ───────────────────────────── */
+var carteNum = document.getElementById('carte-num');
+var cardBrand = document.getElementById('card-brand');
+if (carteNum) {
+    carteNum.addEventListener('input', function() {
+        var val = this.value.replace(/\D/g, '').slice(0, 16);
+        this.value = val.replace(/(.{4})/g, '$1 ').trim();
+        var d = val.charAt(0);
+        cardBrand.textContent = d === '4' ? '💳' : d === '5' ? '💳' : d === '3' ? '💳' : '💳';
+    });
+}
+var carteExp = document.getElementById('carte-exp');
+if (carteExp) {
+    carteExp.addEventListener('input', function() {
+        var v = this.value.replace(/\D/g, '').slice(0, 4);
+        this.value = v.length > 2 ? v.slice(0, 2) + '/' + v.slice(2) : v;
+    });
+}
+var carteCvv = document.getElementById('carte-cvv');
+if (carteCvv) {
+    carteCvv.addEventListener('input', function() {
+        this.value = this.value.replace(/\D/g, '').slice(0, 3);
+    });
+}
+
+/* ── Autocomplétion adresse (Nominatim) ──────────────────── */
+var adresseInput = document.getElementById('adresse-input');
+var suggestionsDiv = document.getElementById('addr-suggestions');
+var addrStatus = document.getElementById('addr-status');
+var adresseValidee = false;
+var _timer = null;
+
+function afficherStatus(ok, msg) {
+    addrStatus.hidden = false;
+    addrStatus.className = 'addr-status ' + (ok ? 'ok' : 'err');
+    addrStatus.textContent = msg;
+}
+
+function masquerSuggestions() {
+    suggestionsDiv.hidden = true;
+    suggestionsDiv.innerHTML = '';
+}
+
+function choisirSuggestion(item) {
+    adresseInput.value = item.display_name;
+    adresseValidee = true;
+    masquerSuggestions();
+    afficherStatus(true, '✓ Adresse vérifiée via OpenStreetMap');
+}
+
+function rechercherAdresse(q) {
+    if (q.length < 8) { masquerSuggestions(); return; }
+    fetch('https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(q)
+        + '&format=json&addressdetails=1&limit=5&accept-language=fr', {
+        headers: { 'User-Agent': 'Ascale-Marbre/1.0' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        suggestionsDiv.innerHTML = '';
+        if (!data.length) { masquerSuggestions(); return; }
+        data.forEach(function(item, i) {
+            var parts = item.display_name.split(', ');
+            var el = document.createElement('div');
+            el.className = 'addr-suggestion-item';
+            el.innerHTML = '<div class="addr-suggestion-main">' + (parts[0] || '') + ', ' + (parts[1] || '') + '</div>'
+                + '<div class="addr-suggestion-sub">' + parts.slice(2, 5).join(', ') + '</div>';
+            el.addEventListener('click', function() { choisirSuggestion(item); });
+            suggestionsDiv.appendChild(el);
+        });
+        suggestionsDiv.hidden = false;
+    })
+    .catch(function() { masquerSuggestions(); });
+}
+
+if (adresseInput) {
+    adresseInput.addEventListener('input', function() {
+        adresseValidee = false;
+        addrStatus.hidden = true;
+        clearTimeout(_timer);
+        _timer = setTimeout(function() { rechercherAdresse(adresseInput.value); }, 400);
+    });
+
+    adresseInput.addEventListener('blur', function() {
+        setTimeout(masquerSuggestions, 200);
+    });
+}
+
+/* ── Soumission formulaire ───────────────────────────────── */
+var formPaiement = document.getElementById('form-paiement');
+var btnSpinner = document.getElementById('btn-payer-spinner');
+
+if (formPaiement) {
+    formPaiement.addEventListener('submit', function(e) {
+        if (!adresseInput.value.trim()) {
+            e.preventDefault();
+            afficherStatus(false, '✗ Veuillez renseigner une adresse de livraison.');
+            adresseInput.focus();
+            return;
+        }
+        btnTexte.hidden = true;
+        btnSpinner.hidden = false;
+        document.getElementById('btn-payer').disabled = true;
+    });
+}
+</script>
+{% endblock %}

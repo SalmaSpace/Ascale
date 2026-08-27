@@ -182,12 +182,12 @@ class TestCommandes:
 
     def test_top_produits_commandes(self, store):
         client = store.add_client("Top Test", "top@test.com")
-        p1 = store.add_produit("Top A", 500.0, 100)
+        p1 = store.add_produit("Top A", 500.0, 500)
         p2 = store.add_produit("Top B", 500.0, 100)
-        store.creer_commande(client.id, [(p1.id, 50), (p2.id, 5)])
+        # 200 m² > seed max (Marbre Beige Crema Marfil : 135 m² cumulés)
+        store.creer_commande(client.id, [(p1.id, 200), (p2.id, 5)])
         top = store.top_produits_commandes(2)
         assert len(top) >= 1
-        # p1 doit apparaître en tête (plus grande quantité)
         assert top[0].nom == "Top A"
 
 

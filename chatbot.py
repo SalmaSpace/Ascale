@@ -98,6 +98,51 @@ INFO_ASCALE = {
         "• Nettoyage : eau savonneuse ordinaire\n"
         "• Imperméabilisation conseillée tous les 2 ans"
     ),
+    "definition_marbre": (
+        "🏛️ *Qu'est-ce que le marbre ?*\n\n"
+        "Le marbre est une **roche métamorphique** formée à partir de calcaire soumis à "
+        "de très hautes pressions et températures. Il est apprécié pour :\n"
+        "• Ses veines naturelles uniques (aucune dalle identique)\n"
+        "• Sa brillance et son aspect luxueux\n"
+        "• Sa durabilité quand il est bien entretenu\n\n"
+        "⚠️ Il est sensible aux acides (citron, vinaigre) et aux chocs.\n\n"
+        "Utilisations : sol, plan de travail, revêtement mural, salle de bain.\n"
+        "Nos origines : Italie (Carrare), Espagne (Marquina, Crema Marfil), Grèce (Thassos), Portugal…\n\n"
+        "Souhaitez-vous voir nos marbres disponibles ? Dites « montrez-moi vos marbres »."
+    ),
+    "definition_granit": (
+        "🪨 *Qu'est-ce que le granit ?*\n\n"
+        "Le granit est une **roche magmatique** (ignée) formée par refroidissement lent du magma. "
+        "C'est l'une des roches les plus dures et résistantes qui soit :\n"
+        "• Résiste aux acides, rayures, chaleur et gel\n"
+        "• Quasi indestructible, idéal pour usage intensif\n"
+        "• Aspect cristallisé avec taches colorées (noir, gris, rouge…)\n\n"
+        "Utilisations : plan de travail cuisine, sol à fort trafic, escalier, façade extérieure.\n"
+        "Nos origines : Inde (Noir Absolu, Rouge India), Finlande (Baltic Brown), Brésil (Bleu Bahia).\n\n"
+        "Souhaitez-vous voir nos granits disponibles ? Dites « montrez-moi vos granits »."
+    ),
+    "definition_onyx": (
+        "💎 *Qu'est-ce que l'onyx ?*\n\n"
+        "L'onyx est une **variété de calcite** (carbonate de calcium cristallisé) aux teintes "
+        "translucides uniques. C'est l'un des matériaux les plus précieux que nous proposons :\n"
+        "• Semi-translucide : magnifique en rétroéclairage (lumière LED par derrière)\n"
+        "• Veines et couleurs extraordinaires (blanc, vert, miel…)\n"
+        "• Réservé aux surfaces décoratives et espaces de prestige\n\n"
+        "⚠️ Plus fragile que le marbre — nécessite un traitement et une pose soignée.\n\n"
+        "Utilisations : panneaux muraux rétroéclairés, comptoirs, réceptions hôtelières.\n"
+        "Nos origines : Iran (Blanc Translucide, Vert Malachite), Pakistan (Miel Doré)."
+    ),
+    "definition_travertin": (
+        "🏜️ *Qu'est-ce que le travertin ?*\n\n"
+        "Le travertin est une **roche sédimentaire calcaire** formée par dépôts de sources "
+        "thermales. Reconnaissable à ses petites cavités naturelles caractéristiques :\n"
+        "• Aspect chaud et naturel, tons beige / noyer / argenté\n"
+        "• Bon rapport qualité/prix — l'un de nos matériaux les plus abordables\n"
+        "• Finition brossée antidérapante possible\n\n"
+        "Utilisations : sol intérieur et extérieur, terrasse, piscine, salle de bain.\n"
+        "Nos origines : Turquie (Beige, Noce, Silver).\n\n"
+        "À partir de 280 MAD/m² — excellent choix pour les grandes surfaces."
+    ),
 }
 
 MESSAGE_AIDE = (
@@ -184,7 +229,9 @@ def _sans_accents(texte: str) -> str:
 
 
 def _normaliser(texte: str) -> str:
-    return _sans_accents(texte or "").lower().strip()
+    texte = _sans_accents(texte or "").lower().strip()
+    texte = texte.replace("’", " ").replace("‘", " ").replace("'", " ")
+    return " ".join(texte.split())
 
 
 def _mots(texte: str) -> set:
@@ -293,8 +340,8 @@ def _tenter_statut_commande(store, texte):
 
 def _tenter_catalogue(store, texte):
     mots_catalogue = (
-        "catalogue", "produit", "materiaux", "materiau", "liste", "quoi",
-        "vous avez", "avez vous", "qu est ce que", "proposez", "vendez", "gamme"
+        "catalogue", "produit", "materiaux", "materiau", "liste",
+        "vous avez", "avez vous", "proposez", "vendez", "gamme"
     )
     if not any(m in texte for m in mots_catalogue):
         return None
@@ -420,6 +467,19 @@ def _tenter_faq(store, texte):
         if any(m in texte for m in ("granit",)):
             return INFO_ASCALE["entretien_granit"]
         return INFO_ASCALE["entretien_marbre"]
+
+    # Définition d'un matériau (c'est quoi, qu'est-ce que, expliquer, définition)
+    mots_def = ("c est quoi", "qu est ce que", "qu est-ce que", "definition", "expliquer",
+                "c est quoi", "kesako", "c quoi", "cest quoi", "qu'est")
+    if any(m in texte for m in mots_def):
+        if any(m in texte for m in ("granit", "granite")):
+            return INFO_ASCALE["definition_granit"]
+        if any(m in texte for m in ("onyx",)):
+            return INFO_ASCALE["definition_onyx"]
+        if any(m in texte for m in ("travertin", "travertine")):
+            return INFO_ASCALE["definition_travertin"]
+        if any(m in texte for m in ("marbre", "marble", "calcaire")):
+            return INFO_ASCALE["definition_marbre"]
 
     # Différence marbre/granit
     if any(m in texte for m in ("difference", "choisir", "vs", "versus", "ou granit", "ou marbre", "lequel")):
@@ -592,6 +652,23 @@ def _tenter_politesse(texte):
             return "Au revoir ! À très bientôt chez *Ascale Marbre*. 🏛️"
 
     return None
+
+
+# ---------- Mode IA Libre ----------
+
+def repondre_libre(store, message: str) -> str:
+    """Mode IA libre : contourne tous les intents, passe directement au LLM.
+    Si OpenRouter n'est pas configuré, retourne un message d'erreur explicite.
+    """
+    reponse_llm = _tenter_llm(store, message)
+    if reponse_llm:
+        return reponse_llm
+    return (
+        "🔑 *Mode IA Libre non disponible*\n\n"
+        "Ce mode nécessite une clé OpenRouter configurée dans `.env` :\n"
+        "`OPENROUTER_API_KEY=votre-clé`\n\n"
+        "Repassez en *Mode Spécialisé* pour utiliser le chatbot Ascale."
+    )
 
 
 # ---------- Fonction principale ----------

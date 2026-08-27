@@ -2,19 +2,22 @@ import csv
 import json
 import os
 import re
+import urllib.parse
+import urllib.request
 from functools import wraps
-from io import StringIO
+from io import BytesIO, StringIO
 from itertools import groupby
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from flask import Flask, Response, flash, redirect, render_template, request, session, url_for
+from flask import Flask, Response, flash, redirect, render_template, request, send_file, session, url_for
 from flask_mail import Mail
 
 import chatbot
 import email_service
+import facture_service
 import whatsapp_config
 from database import db
 from models import CreneauIndisponibleError, Store, StockInsuffisantError, seed
@@ -122,7 +125,7 @@ def register_routes(app):
     def nos_materiaux():
         return render_template("nos_materiaux.html", produits=store.list_produits())
 
-    # ---------- Commande publique ----------
+    # ---------- Commande publique — étape 1 : sélection produits ----------
     @app.route("/commander", methods=["GET", "POST"])
     def commander():
         produits = store.list_produits()
@@ -159,15 +162,164 @@ def register_routes(app):
                 flash("Sélectionnez au moins un produit avec une quantité.", "error")
                 return render_template("commander.html", produits=produits)
 
-            try:
-                commande = store.creer_commande_publique(nom, email, telephone, lignes_demandees)
-            except (StockInsuffisantError, ValueError) as exc:
-                flash(str(exc), "error")
-                return render_template("commander.html", produits=produits)
+            # Vérifier stock avant de stocker en session
+            for pid, qty in lignes_demandees:
+                p = store.get_produit(pid)
+                if p is None or p.stock < qty:
+                    nom_p = p.nom if p else f"Produit #{pid}"
+                    flash(f"Stock insuffisant pour {nom_p}.", "error")
+                    return render_template("commander.html", produits=produits)
 
-            return redirect(url_for("commande_confirmee", commande_id=commande.id))
+            # Calculer le total pour affichage
+            total = sum(
+                store.get_produit(pid).prix * qty
+                for pid, qty in lignes_demandees
+                if store.get_produit(pid)
+            )
+
+            session["panier"] = {
+                "nom": nom,
+                "email": email,
+                "telephone": telephone,
+                "lignes": lignes_demandees,
+                "total": total,
+            }
+            return redirect(url_for("paiement"))
 
         return render_template("commander.html", produits=produits)
+
+    # ---------- Commande publique — étape 2 : adresse + paiement ----------
+    MODES_PAIEMENT = ["carte", "virement", "especes"]
+
+    def _valider_adresse_nominatim(adresse: str) -> bool:
+        """Vérifie via Nominatim que l'adresse existe. Retourne True si trouvée ou si API indisponible."""
+        try:
+            params = urllib.parse.urlencode({"q": adresse, "format": "json", "limit": "1"})
+            url = f"https://nominatim.openstreetmap.org/search?{params}"
+            req = urllib.request.Request(
+                url, headers={"User-Agent": "Ascale-Marbre/1.0 contact@ascale.ma"}
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read())
+                return len(data) > 0
+        except Exception:
+            return True  # Ne pas bloquer si l'API est indisponible
+
+    @app.route("/paiement", methods=["GET", "POST"])
+    def paiement():
+        panier = session.get("panier")
+        if not panier:
+            flash("Votre panier est vide. Veuillez sélectionner des produits.", "error")
+            return redirect(url_for("commander"))
+
+        produits_map = {p.id: p for p in store.list_produits()}
+        lignes_recap = [
+            {
+                "nom": produits_map[pid].nom if pid in produits_map else f"Produit #{pid}",
+                "prix": produits_map[pid].prix if pid in produits_map else 0,
+                "quantite": qty,
+                "sous_total": produits_map[pid].prix * qty if pid in produits_map else 0,
+            }
+            for pid, qty in panier["lignes"]
+        ]
+
+        if request.method == "POST":
+            adresse = request.form.get("adresse", "").strip()
+            mode_paiement = request.form.get("mode_paiement", "").strip()
+
+            if not adresse:
+                flash("L'adresse de livraison est obligatoire.", "error")
+                return render_template(
+                    "paiement.html", panier=panier, lignes_recap=lignes_recap,
+                    modes=MODES_PAIEMENT
+                )
+
+            if mode_paiement not in MODES_PAIEMENT:
+                flash("Mode de paiement invalide.", "error")
+                return render_template(
+                    "paiement.html", panier=panier, lignes_recap=lignes_recap,
+                    modes=MODES_PAIEMENT
+                )
+
+            # Validation adresse via Nominatim (non bloquante)
+            adresse_valide = _valider_adresse_nominatim(adresse)
+            if not adresse_valide:
+                flash(
+                    "Adresse introuvable — veuillez vérifier ou sélectionner depuis la liste de suggestions.",
+                    "error"
+                )
+                return render_template(
+                    "paiement.html", panier=panier, lignes_recap=lignes_recap,
+                    modes=MODES_PAIEMENT
+                )
+
+            # Créer la commande
+            try:
+                commande = store.creer_commande_publique(
+                    panier["nom"], panier["email"], panier["telephone"],
+                    [tuple(l) for l in panier["lignes"]]
+                )
+            except (StockInsuffisantError, ValueError) as exc:
+                flash(str(exc), "error")
+                return render_template(
+                    "paiement.html", panier=panier, lignes_recap=lignes_recap,
+                    modes=MODES_PAIEMENT
+                )
+
+            # Mettre à jour l'adresse du client
+            client = store.get_client(commande.client_id)
+            if client:
+                from database import db as _db
+                client.adresse = adresse
+                _db.session.commit()
+
+            # Générer et envoyer la facture PDF
+            try:
+                pdf_bytes = facture_service.generer_facture_pdf(commande, client)
+                email_service.envoyer_facture_commande(app.mail, commande, client, pdf_bytes)
+            except Exception:
+                pdf_bytes = None
+
+            # Stocker les bytes PDF en session (pour téléchargement immédiat)
+            if pdf_bytes:
+                session["facture_pdf"] = pdf_bytes.hex()
+                session["facture_id"] = commande.id
+
+            session.pop("panier", None)
+            return redirect(url_for("commande_recu", commande_id=commande.id))
+
+        return render_template(
+            "paiement.html", panier=panier, lignes_recap=lignes_recap, modes=MODES_PAIEMENT
+        )
+
+    # ---------- Commande publique — étape 3 : reçu ----------
+    @app.route("/commande/recu/<int:commande_id>")
+    def commande_recu(commande_id):
+        commande = store.get_commande(commande_id)
+        if commande is None:
+            flash("Commande introuvable.", "error")
+            return redirect(url_for("commander"))
+        client = store.get_client(commande.client_id)
+        return render_template("recu.html", commande=commande, client=client)
+
+    @app.route("/commande/facture/<int:commande_id>.pdf")
+    def telecharger_facture(commande_id):
+        commande = store.get_commande(commande_id)
+        if commande is None:
+            flash("Commande introuvable.", "error")
+            return redirect(url_for("commander"))
+        client = store.get_client(commande.client_id)
+        try:
+            pdf_bytes = facture_service.generer_facture_pdf(commande, client)
+        except Exception:
+            flash("Erreur lors de la génération de la facture.", "error")
+            return redirect(url_for("commande_recu", commande_id=commande_id))
+        return send_file(
+            BytesIO(pdf_bytes),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=f"facture_ascale_{commande_id:04d}.pdf",
+        )
 
     @app.route("/commande/confirmee/<int:commande_id>")
     def commande_confirmee(commande_id):
@@ -402,9 +554,12 @@ def register_routes(app):
         )
 
     # ---------- Chatbot ----------
-    def _chatbot_repondre_et_stocker(message):
+    def _chatbot_repondre_et_stocker(message, mode="specialise"):
         conversation = session.get("chatbot_conversation", [])
-        reponse = chatbot.repondre(store, message)
+        if mode == "libre":
+            reponse = chatbot.repondre_libre(store, message)
+        else:
+            reponse = chatbot.repondre(store, message)
         conversation.append({"role": "client", "texte": message})
         conversation.append({"role": "bot", "texte": reponse})
         session["chatbot_conversation"] = conversation[-TAILLE_MAX_CONVERSATION_CHATBOT:]
@@ -420,8 +575,9 @@ def register_routes(app):
     @app.route("/chatbot/envoyer", methods=["POST"])
     def chatbot_envoyer():
         message = request.form.get("message", "").strip()
+        mode = session.get("chatbot_mode", "specialise")
         if message:
-            _chatbot_repondre_et_stocker(message)
+            _chatbot_repondre_et_stocker(message, mode)
         return redirect(url_for("chatbot_page"))
 
     @app.route("/chatbot/widget/envoyer", methods=["POST"])
@@ -429,7 +585,8 @@ def register_routes(app):
         message = request.form.get("message", "").strip()
         if not message:
             return {"erreur": "Message vide."}, 400
-        reponse = _chatbot_repondre_et_stocker(message)
+        mode = session.get("chatbot_mode", "specialise")
+        reponse = _chatbot_repondre_et_stocker(message, mode)
         return {"reponse": reponse}
 
     @app.route("/chatbot/reinitialiser", methods=["POST"])
@@ -439,9 +596,21 @@ def register_routes(app):
             return {"ok": True}
         return redirect(url_for("chatbot_page"))
 
+    @app.route("/chatbot/mode/<mode>", methods=["POST"])
+    def chatbot_changer_mode(mode):
+        if mode in ("specialise", "libre"):
+            session["chatbot_mode"] = mode
+            session.pop("chatbot_conversation", None)
+        if request.accept_mimetypes.best == "application/json":
+            return {"mode": session.get("chatbot_mode", "specialise")}
+        return redirect(url_for("chatbot_page"))
+
     @app.context_processor
     def injecter_widget_chatbot():
-        return {"conversation_widget": session.get("chatbot_conversation", [])}
+        return {
+            "conversation_widget": session.get("chatbot_conversation", []),
+            "chatbot_mode": session.get("chatbot_mode", "specialise"),
+        }
 
     # ---------- Réservation ----------
     @app.route("/reservation")

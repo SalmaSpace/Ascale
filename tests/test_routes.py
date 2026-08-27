@@ -84,7 +84,7 @@ class TestCommandeurPublic:
         match = re.search(rb'data-id="(\d+)"', r.data)
         return int(match.group(1)) if match else 1
 
-    def test_post_valide_redirige_vers_confirmation(self, client):
+    def test_post_valide_redirige_vers_paiement(self, client):
         pid = self._premier_produit_id(client)
         r = client.post("/commander", data={
             "nom": "Test Client",
@@ -93,9 +93,9 @@ class TestCommandeurPublic:
             "produit_id": str(pid),
             "quantite": "1",
         }, follow_redirects=False)
-        # Doit rediriger vers /commande/confirmee/<id>
+        # Doit maintenant rediriger vers /paiement (étape 2)
         assert r.status_code in (302, 303)
-        assert b"/commande/confirmee/" in r.headers.get("Location", "").encode()
+        assert b"/paiement" in r.headers.get("Location", "").encode()
 
     def test_post_sans_nom_flash_erreur(self, client):
         pid = self._premier_produit_id(client)

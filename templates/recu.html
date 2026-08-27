@@ -1,0 +1,175 @@
+{% extends "base_public.html" %}
+{% block title %}Reçu — Commande Ascale n°{{ commande.id }}{% endblock %}
+
+{% block content %}
+<section class="pub-section pub-page-header">
+    <div class="pub-section-header reveal">
+        <div class="pub-eyebrow">Étape 3 / 3 — Commande confirmée</div>
+        <h1 class="pub-section-title">Merci pour votre commande !</h1>
+        <p class="pub-section-text">
+            Votre commande n°{{ commande.id }} a bien été enregistrée.
+            {% if client and client.email %}
+            Une facture pro forma a été envoyée à <strong>{{ client.email }}</strong>.
+            {% else %}
+            Notre équipe vous contactera sous 24h pour confirmer les détails.
+            {% endif %}
+        </p>
+    </div>
+</section>
+
+<!-- Indicateur d'étapes -->
+<div class="pay-steps reveal">
+    <div class="pay-step pay-step-done"><span>1</span> Produits</div>
+    <div class="pay-step-sep"></div>
+    <div class="pay-step pay-step-done"><span>2</span> Paiement</div>
+    <div class="pay-step-sep"></div>
+    <div class="pay-step pay-step-active"><span>3</span> Confirmation</div>
+</div>
+
+<section class="pub-section pub-section-narrow" style="padding-top:0;">
+
+    <div class="recu-card reveal">
+        <!-- En-tête reçu -->
+        <div class="recu-header">
+            <div class="recu-check">✓</div>
+            <div>
+                <div class="recu-ref">Commande n°{{ commande.id }}</div>
+                <div class="recu-client">{{ commande.client_nom }}</div>
+                <div class="recu-date">{{ commande.date.strftime('%d/%m/%Y à %Hh%M') }}</div>
+            </div>
+            <a href="{{ url_for('telecharger_facture', commande_id=commande.id) }}"
+               class="recu-dl-btn" title="Télécharger la facture PDF">
+                📄 Télécharger la facture
+            </a>
+        </div>
+
+        <!-- Livraison -->
+        {% if client and client.adresse %}
+        <div class="recu-section">
+            <h3 class="recu-section-title">Adresse de livraison</h3>
+            <p class="recu-adresse">{{ client.adresse }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Produits commandés -->
+        <div class="recu-section">
+            <h3 class="recu-section-title">Récapitulatif commande</h3>
+            {% for ligne in commande.lignes %}
+            <div class="recu-ligne">
+                <span class="recu-produit">{{ ligne.produit_nom }}</span>
+                <span class="recu-qty">{{ ligne.quantite }} m²</span>
+                <span class="recu-prix">{{ ligne.sous_total | int }} MAD</span>
+            </div>
+            {% endfor %}
+            <div class="recu-total">
+                <span>Total HT</span>
+                <span>{{ commande.total | int }} MAD</span>
+            </div>
+        </div>
+
+        <!-- Prochaines étapes -->
+        <div class="recu-section">
+            <h3 class="recu-section-title">Prochaines étapes</h3>
+            <ol class="recu-etapes">
+                <li>
+                    <span class="recu-num">1</span>
+                    <span>Notre équipe vérifie la disponibilité et vous contacte sous 24h</span>
+                </li>
+                <li>
+                    <span class="recu-num">2</span>
+                    <span>Confirmation du devis officiel et modalités de règlement</span>
+                </li>
+                <li>
+                    <span class="recu-num">3</span>
+                    <span>Acompte 30 % à la confirmation — solde à la livraison</span>
+                </li>
+            </ol>
+        </div>
+
+        <!-- Contact -->
+        <div class="recu-contact">
+            <span>Une question ?</span>
+            <a href="tel:+21252200000">📞 +212 5 22 XX XX XX</a>
+            <a href="mailto:contact@ascale.ma">✉️ contact@ascale.ma</a>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="recu-actions reveal">
+        <a href="{{ url_for('telecharger_facture', commande_id=commande.id) }}"
+           class="pub-btn pub-btn-gold">
+            📄 Télécharger la facture PDF
+        </a>
+        <a href="{{ url_for('accueil') }}" class="pub-btn pub-btn-outline">Retour à l'accueil</a>
+        <a href="{{ url_for('nos_materiaux') }}" class="pub-btn pub-btn-outline">Voir le catalogue</a>
+    </div>
+</section>
+
+<style>
+/* ── Étapes (même CSS que paiement.html) ──────────── */
+.pay-steps {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0; max-width: 480px; margin: 0 auto 2.5rem; padding: 0 1rem;
+}
+.pay-step { display: flex; align-items: center; gap: .5rem; font-size: .85rem; font-weight: 600; color: #bbb; }
+.pay-step span { width: 28px; height: 28px; border-radius: 50%; background: #e0ddd6; color: #888; display: flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 700; }
+.pay-step-active { color: var(--clr-anthracite, #1a1a1a); }
+.pay-step-active span { background: var(--clr-gold, #c9a96e); color: #fff; }
+.pay-step-done { color: #2e7d32; }
+.pay-step-done span { background: #2e7d32; color: #fff; }
+.pay-step-sep { flex: 1; height: 2px; background: #e0ddd6; max-width: 60px; margin: 0 .5rem; }
+
+/* ── Carte reçu ──────────────────────────────────── */
+.recu-card {
+    background: var(--clr-surface, #faf9f6);
+    border: 1px solid var(--clr-border, #e0ddd6);
+    border-radius: 12px; overflow: hidden; margin-bottom: 2rem;
+}
+.recu-header {
+    display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+    background: var(--clr-anthracite, #1a1a1a); color: #fff;
+    padding: 1.5rem 2rem;
+}
+.recu-check {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--clr-gold, #c9a96e); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem; font-weight: 700; flex-shrink: 0;
+}
+.recu-ref { font-size: 1.1rem; font-weight: 700; color: var(--clr-gold, #c9a96e); }
+.recu-client { font-size: 1rem; margin-top: .2rem; }
+.recu-date { font-size: .8rem; opacity: .6; margin-top: .2rem; }
+.recu-dl-btn {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: .4rem;
+    background: var(--clr-gold, #c9a96e); color: #fff;
+    padding: .6rem 1.1rem; border-radius: 8px;
+    text-decoration: none; font-size: .85rem; font-weight: 600;
+    white-space: nowrap; transition: opacity .15s;
+}
+.recu-dl-btn:hover { opacity: .85; }
+
+/* ── Sections ────────────────────────────────────── */
+.recu-section { padding: 1.25rem 2rem; border-bottom: 1px solid var(--clr-border, #e0ddd6); }
+.recu-section-title { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; color: #888; margin-bottom: .9rem; }
+.recu-adresse { font-size: .95rem; color: #333; }
+.recu-ligne { display: flex; align-items: center; gap: 1rem; padding: .55rem 0; border-bottom: 1px solid rgba(0,0,0,.05); font-size: .9rem; }
+.recu-produit { flex: 1; }
+.recu-qty { font-size: .82rem; color: #666; min-width: 50px; text-align: center; }
+.recu-prix { font-weight: 600; min-width: 90px; text-align: right; }
+.recu-total { display: flex; justify-content: space-between; padding-top: .9rem; font-size: 1.05rem; font-weight: 700; color: var(--clr-gold, #c9a96e); }
+
+.recu-etapes { list-style: none; padding: 0; display: flex; flex-direction: column; gap: .85rem; }
+.recu-etapes li { display: flex; align-items: flex-start; gap: .8rem; font-size: .9rem; line-height: 1.4; }
+.recu-num { width: 24px; height: 24px; border-radius: 50%; background: var(--clr-gold, #c9a96e); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; flex-shrink: 0; margin-top: .1rem; }
+
+.recu-contact { padding: 1.25rem 2rem; display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; font-size: .9rem; color: #555; }
+.recu-contact a { color: var(--clr-gold, #c9a96e); text-decoration: none; font-weight: 600; }
+.recu-contact a:hover { text-decoration: underline; }
+
+/* ── Actions ─────────────────────────────────────── */
+.recu-actions { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; margin-bottom: 3rem; }
+.pub-btn-outline { background: transparent; border: 1.5px solid var(--clr-anthracite, #1a1a1a); color: var(--clr-anthracite, #1a1a1a); }
+.pub-btn-outline:hover { background: var(--clr-anthracite, #1a1a1a); color: #fff; }
+</style>
+{% endblock %}
