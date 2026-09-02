@@ -58,6 +58,24 @@ Langue : toujours en français. Style : professionnel, chaleureux, concis (3–5
 Pas de mention de concurrents. Émojis appropriés avec parcimonie.\
 """
 
+_SYSTEM_PROMPT_LIBRE = """\
+Tu es l'assistant virtuel d'Ascale, importateur marocain de matériaux de prestige \
+(marbre, granit, onyx, travertin).
+
+Catalogue actuel Ascale :
+{catalogue}
+
+Ici tu es en mode « IA Libre » : contrairement au mode spécialisé, tu réponds à \
+n'importe quelle question du visiteur, pas seulement sur les matériaux Ascale. \
+Reste utile, honnête et bienveillant sur tous les sujets. Si la question concerne \
+les matériaux, la déco ou l'architecture, tu peux t'appuyer sur le catalogue \
+ci-dessus et ton expertise du secteur.
+
+Langue : toujours en français, sauf si le visiteur écrit dans une autre langue. \
+Style : chaleureux, concis (3–6 phrases max sauf si la question demande plus de \
+détail). Émojis appropriés avec parcimonie.\
+"""
+
 _devis_ids = count(1)
 
 MOTS_CLES_COMMANDE = ("commande", "statut", "suivi", "ou en est")
@@ -167,12 +185,16 @@ EXEMPLES = (
 )
 
 
-def _tenter_llm(store, message_original: str):
+def _tenter_llm(store, message_original: str, libre: bool = False):
     """Appelle OpenRouter si la clé est configurée.
 
     Retourne la réponse LLM (str) ou None si la clé est absente / en cas d'erreur.
     Passe le message original (non normalisé) au LLM pour préserver les accents
     et la casse, ce qui améliore la compréhension.
+
+    `libre=True` (mode IA Libre) utilise un prompt système sans restriction de
+    périmètre — sinon le LLM répond toujours avec le message de refus du mode
+    spécialisé, même en mode "libre".
     """
     if not OPENROUTER_API_KEY:
         return None
@@ -190,10 +212,11 @@ def _tenter_llm(store, message_original: str):
     except Exception:
         catalogue_str = "Catalogue non disponible."
 
+    prompt = _SYSTEM_PROMPT_LIBRE if libre else _SYSTEM_PROMPT
     payload = json.dumps({
         "model": OPENROUTER_MODEL,
         "messages": [
-            {"role": "system", "content": _SYSTEM_PROMPT.format(catalogue=catalogue_str)},
+            {"role": "system", "content": prompt.format(catalogue=catalogue_str)},
             {"role": "user",   "content": message_original},
         ],
         "max_tokens": 350,
@@ -657,10 +680,11 @@ def _tenter_politesse(texte):
 # ---------- Mode IA Libre ----------
 
 def repondre_libre(store, message: str) -> str:
-    """Mode IA libre : contourne tous les intents, passe directement au LLM.
+    """Mode IA libre : contourne tous les intents, passe directement au LLM
+    avec un prompt système sans restriction de périmètre.
     Si OpenRouter n'est pas configuré, retourne un message d'erreur explicite.
     """
-    reponse_llm = _tenter_llm(store, message)
+    reponse_llm = _tenter_llm(store, message, libre=True)
     if reponse_llm:
         return reponse_llm
     return (
