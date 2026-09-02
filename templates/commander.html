@@ -261,7 +261,7 @@ function appliquerSurface() {
     if (_surfaceCalc <= 0) return;
     var checked = document.querySelectorAll('.prod-check:checked');
     if (checked.length === 0) {
-        alert('Cochez d'abord les matériaux souhaités pour appliquer la surface.');
+        alert("Cochez d'abord les matériaux souhaités pour appliquer la surface.");
         return;
     }
     checked.forEach(function(cb) {

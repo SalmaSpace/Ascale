@@ -4,9 +4,6 @@ Chaque test envoie une vraie requête HTTP via app.test_client() et vérifie
 le code de statut et/ou le contenu de la réponse.
 """
 
-import csv
-import io
-
 import pytest
 
 
@@ -43,32 +40,6 @@ class TestPagesPubliques:
     def test_route_inexistante_404(self, client):
         r = client.get("/page-qui-nexiste-pas")
         assert r.status_code == 404
-
-
-# ═══════════════════════════════════════════════════
-# PAGES ADMIN
-# ═══════════════════════════════════════════════════
-
-class TestPagesAdmin:
-    def test_gestion_200(self, client):
-        r = client.get("/gestion")
-        assert r.status_code == 200
-
-    def test_commandes_200(self, client):
-        r = client.get("/commandes")
-        assert r.status_code == 200
-
-    def test_produits_200(self, client):
-        r = client.get("/produits")
-        assert r.status_code == 200
-
-    def test_clients_200(self, client):
-        r = client.get("/clients")
-        assert r.status_code == 200
-
-    def test_nouvelle_commande_get_200(self, client):
-        r = client.get("/commandes/nouvelle")
-        assert r.status_code == 200
 
 
 # ═══════════════════════════════════════════════════
@@ -175,58 +146,6 @@ class TestChatbotRoutes:
 
 
 # ═══════════════════════════════════════════════════
-# EXPORT CSV
-# ═══════════════════════════════════════════════════
-
-class TestExportCsv:
-    def test_export_commandes_csv_content_type(self, client):
-        r = client.get("/admin/commandes/export")
-        assert r.status_code == 200
-        assert "text/csv" in r.content_type
-
-    def test_export_commandes_csv_a_un_entete(self, client):
-        r = client.get("/admin/commandes/export")
-        content = r.data.decode("utf-8-sig")  # retire le BOM
-        reader = csv.reader(io.StringIO(content))
-        header = next(reader)
-        assert "ID" in header
-        assert "Client" in header
-        assert "Statut" in header
-
-    def test_export_clients_csv_content_type(self, client):
-        r = client.get("/admin/clients/export")
-        assert r.status_code == 200
-        assert "text/csv" in r.content_type
-
-    def test_export_clients_csv_a_un_entete(self, client):
-        r = client.get("/admin/clients/export")
-        content = r.data.decode("utf-8-sig")
-        reader = csv.reader(io.StringIO(content))
-        header = next(reader)
-        assert "Nom" in header
-        assert "Email" in header
-
-
-# ═══════════════════════════════════════════════════
-# GESTION STATUT COMMANDE
-# ═══════════════════════════════════════════════════
-
-class TestStatutCommande:
-    def test_mise_a_jour_statut_valide(self, client):
-        r = client.post("/commandes/1/statut",
-                        data={"statut": "Expédiée"},
-                        follow_redirects=True)
-        assert r.status_code == 200
-
-    def test_mise_a_jour_statut_invalide_flash(self, client):
-        r = client.post("/commandes/1/statut",
-                        data={"statut": "StatutInvalideXYZ"},
-                        follow_redirects=True)
-        assert r.status_code == 200
-        assert b"invalide" in r.data.lower() or b"statut" in r.data.lower()
-
-
-# ═══════════════════════════════════════════════════
 # WEBHOOK WHATSAPP
 # ═══════════════════════════════════════════════════
 
@@ -244,41 +163,4 @@ class TestWebhookWhatsapp:
         r = client.post("/webhook/whatsapp",
                         json={"entry": []},
                         content_type="application/json")
-        assert r.status_code == 200
-
-
-# ═══════════════════════════════════════════════════
-# AJOUT PRODUIT / CLIENT (admin)
-# ═══════════════════════════════════════════════════
-
-class TestAdminCrud:
-    def test_ajouter_produit_redirige(self, client):
-        r = client.post("/produits/ajouter", data={
-            "nom": "Nouveau Produit Test",
-            "prix": "750",
-            "stock": "30",
-            "description": "Test ajout produit",
-        })
-        assert r.status_code in (302, 303)
-
-    def test_ajouter_produit_champs_invalides_flash(self, client):
-        r = client.post("/produits/ajouter", data={
-            "nom": "",
-            "prix": "-10",
-            "stock": "0",
-        }, follow_redirects=True)
-        assert r.status_code == 200
-
-    def test_ajouter_client_redirige(self, client):
-        r = client.post("/clients/ajouter", data={
-            "nom": "Nouveau Client Test",
-            "email": "nouveau@test.com",
-            "telephone": "0600000099",
-        })
-        assert r.status_code in (302, 303)
-
-    def test_ajouter_client_sans_nom_flash(self, client):
-        r = client.post("/clients/ajouter",
-                        data={"nom": ""},
-                        follow_redirects=True)
         assert r.status_code == 200

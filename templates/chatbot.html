@@ -26,7 +26,7 @@
         </div>
         <span class="chat-mode-desc" id="chat-mode-desc">
             {% if chatbot_mode == 'libre' %}
-            IA générale via OpenRouter — répond à toute question
+            IA générale — répond à toute question
             {% else %}
             Répond sur les matériaux, devis, commandes Ascale
             {% endif %}
@@ -40,7 +40,7 @@
                 <div class="pub-chat-name">Ascale Marbre</div>
                 <div class="pub-chat-status">
                     <span class="pub-chat-dot"></span>
-                    {% if chatbot_mode == 'libre' %}Mode IA Libre — OpenRouter{% else %}Mode Spécialisé{% endif %}
+                    {% if chatbot_mode == 'libre' %}Mode IA Libre{% else %}Mode Spécialisé{% endif %}
                 </div>
             </div>
             <button type="button" class="pub-chat-reset" id="pub-chat-reset" aria-label="Réinitialiser la conversation">
@@ -166,7 +166,7 @@
     /* ── Toggle mode chatbot ──────────────────────────────── */
     var DESCS = {
         specialise: "Répond sur les matériaux, devis, commandes Ascale",
-        libre: "IA générale via OpenRouter — répond à toute question"
+        libre: "IA générale — répond à toute question"
     };
     document.querySelectorAll(".chat-mode-btn").forEach(function(btn) {
         btn.addEventListener("click", function() {
@@ -182,12 +182,12 @@
                 var desc = document.getElementById("chat-mode-desc");
                 if (desc) desc.textContent = DESCS[mode] || "";
                 var statusEl = document.querySelector(".pub-chat-status");
-                if (statusEl) statusEl.innerHTML = '<span class="pub-chat-dot"></span> Mode ' + (mode === "libre" ? "IA Libre — OpenRouter" : "Spécialisé");
+                if (statusEl) statusEl.innerHTML = '<span class="pub-chat-dot"></span> Mode ' + (mode === "libre" ? "IA Libre" : "Spécialisé");
                 var msgDiv = document.getElementById("pub-chat-messages");
                 if (msgDiv) {
                     msgDiv.innerHTML = "";
                     var txt = mode === "libre"
-                        ? "🤖 Mode IA Libre activé. Posez n'importe quelle question (nécessite une clé OpenRouter)."
+                        ? "🤖 Mode IA Libre activé. Posez n'importe quelle question."
                         : "🏛️ Mode Spécialisé activé. Je réponds sur les matériaux, devis et commandes Ascale.";
                     var bulle = document.createElement("div");
                     bulle.className = "pub-chat-bubble pub-chat-bubble-bot";

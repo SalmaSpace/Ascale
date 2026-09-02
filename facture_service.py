@@ -39,14 +39,14 @@ def generer_facture_pdf(commande, client=None) -> bytes:
     # ── Titre ─────────────────────────────────────────────────────
     pdf.set_font("Helvetica", "B", 17)
     pdf.set_text_color(*_NOIR)
-    pdf.cell(0, 10, f"FACTURE PRO FORMA  —  N° ASC-{commande.id:04d}",
+    pdf.cell(0, 10, f"FACTURE PRO FORMA  -  N° ASC-{commande.id:04d}",
              new_x="LMARGIN", new_y="NEXT", align="C")
 
     date_str = (commande.date.strftime("%d/%m/%Y") if hasattr(commande.date, "strftime")
                 else str(commande.date))
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(*_GRIS)
-    pdf.cell(0, 6, f"Date : {date_str}    •    Statut : {commande.statut}",
+    pdf.cell(0, 6, f"Date : {date_str}    -    Statut : {commande.statut}",
              new_x="LMARGIN", new_y="NEXT", align="C")
     pdf.ln(9)
 
@@ -85,7 +85,7 @@ def generer_facture_pdf(commande, client=None) -> bytes:
     pdf.set_text_color(*_BLANC)
     pdf.set_font("Helvetica", "B", 9)
     for w, h, a in zip(col_w, headers, aligns):
-        pdf.cell(w, 8, h, fill=True, align=a, new_x="RIGHT", new_y="TBLR")
+        pdf.cell(w, 8, h, fill=True, align=a, new_x="RIGHT", new_y="TOP")
     pdf.ln(8)
 
     fill = False
@@ -101,7 +101,7 @@ def generer_facture_pdf(commande, client=None) -> bytes:
             f"{st:,.0f}",
         ]
         for w, v, a in zip(col_w, vals, aligns):
-            pdf.cell(w, 7, v, fill=True, align=a, new_x="RIGHT", new_y="TBLR")
+            pdf.cell(w, 7, v, fill=True, align=a, new_x="RIGHT", new_y="TOP")
         pdf.ln(7)
         fill = not fill
 
@@ -116,7 +116,7 @@ def generer_facture_pdf(commande, client=None) -> bytes:
     pdf.set_font("Helvetica", "B", 12)
     pdf.set_text_color(*_NOIR)
     pdf.cell(col_w[0] + col_w[1] + col_w[2], 9, "TOTAL HT :", align="R",
-             new_x="RIGHT", new_y="TBLR")
+             new_x="RIGHT", new_y="TOP")
     pdf.set_text_color(*_OR)
     pdf.set_font("Helvetica", "B", 13)
     pdf.cell(col_w[3], 9, f"{commande.total:,.0f} MAD", align="R",
@@ -127,14 +127,17 @@ def generer_facture_pdf(commande, client=None) -> bytes:
     pdf.set_font("Helvetica", "I", 8)
     pdf.set_text_color(*_GRIS)
     pdf.multi_cell(0, 5, (
-        "FACTURE PRO FORMA — Aucun débit en ligne n’a été effectué. "
+        "FACTURE PRO FORMA - Aucun débit en ligne n'a été effectué. "
         "Notre équipe vous contactera pour confirmer les modalités de règlement "
         "(virement bancaire, chèque certifié ou espèces au showroom). "
-        "Un acompte de 30 % est demandé à la confirmation. "
+        "Un acompte de 30 % est demandé à la confirmation. "
         "Prix en MAD HT. Livraison et pose non incluses sauf accord préalable écrit."
     ))
 
     # ── Pied de page ──────────────────────────────────────────────
+    # Auto page break désactivé ici : sans ça, set_y(-18) atterrit pile sur
+    # le seuil de marge (18) et fpdf2 insère une 2e page pour le pied de page.
+    pdf.set_auto_page_break(auto=False)
     pdf.set_y(-18)
     pdf.set_draw_color(200, 200, 200)
     pdf.set_line_width(0.3)
@@ -143,7 +146,7 @@ def generer_facture_pdf(commande, client=None) -> bytes:
     pdf.set_font("Helvetica", "", 7.5)
     pdf.set_text_color(160, 160, 160)
     pdf.cell(0, 5,
-             "Ascale — Casablanca, Maroc — contact@ascale.ma — +212 5 22 XX XX XX",
+             "Ascale - Casablanca, Maroc - contact@ascale.ma - +212 5 22 XX XX XX",
              align="C")
 
     return bytes(pdf.output())
