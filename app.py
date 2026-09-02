@@ -513,4 +513,9 @@ def register_routes(app):
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # debug=True uniquement en local, sur demande explicite (FLASK_DEBUG=true dans .env).
+    # En prod, gunicorn importe directement l'objet `app` ci-dessus et ne passe
+    # jamais par ce bloc — mais on évite quand même que debug=True soit la valeur
+    # par défaut si jamais `python app.py` est lancé directement sur un serveur.
+    debug = os.environ.get("FLASK_DEBUG", "false").strip().lower() == "true"
+    app.run(debug=debug)
