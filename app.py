@@ -1,11 +1,9 @@
-import csv
 import json
 import os
 import re
 import urllib.parse
 import urllib.request
-from functools import wraps
-from io import BytesIO, StringIO
+from io import BytesIO
 from itertools import groupby
 
 from dotenv import load_dotenv
@@ -32,9 +30,6 @@ MOIS_FR = [
     "juillet", "août", "septembre", "octobre", "novembre", "décembre",
 ]
 
-STATUTS_COMMANDE = ["Enregistrée", "En préparation", "Expédiée", "Livrée", "Annulée"]
-
-
 def formater_date_fr(valeur):
     return f"{JOURS_FR[valeur.weekday()].capitalize()} {valeur.day} {MOIS_FR[valeur.month - 1]}"
 
@@ -54,17 +49,6 @@ def classe_swatch(nom):
     if "beige" in nom_lower or "travertin" in nom_lower or "crema" in nom_lower:
         return "pub-swatch-beige"
     return "pub-swatch-blanc"
-
-
-def login_required(vue):
-    @wraps(vue)
-    def wrapper(*args, **kwargs):
-        if not session.get("utilisateur_id"):
-            flash("Merci de vous connecter pour accéder à cette page.", "error")
-            return redirect(url_for("connexion", next=request.path))
-        return vue(*args, **kwargs)
-
-    return wrapper
 
 
 def create_app(test_config=None):
@@ -329,230 +313,6 @@ def register_routes(app):
             return redirect(url_for("commander"))
         return render_template("commande_confirmee.html", commande=commande)
 
-    # ---------- Gestion interne ----------
-    @app.route("/gestion")
-    def index():
-        commandes = store.list_commandes()
-        top = store.top_produits_commandes(5)
-        sources = store.commandes_par_source()
-        return render_template(
-            "index.html",
-            nb_produits=len(store.list_produits()),
-            nb_clients=len(store.list_clients()),
-            chiffre_affaires=store.chiffre_affaires(),
-            dernieres_commandes=commandes[:5],
-            nb_commandes_publiques=store.nb_commandes_publiques(),
-            stock_faible=store.produits_stock_faible(),
-            rupture=store.produits_rupture(),
-            # JSON pour Chart.js (Jinja échappe, on double-encode)
-            chart_top_noms=json.dumps([r.nom.rsplit(" ", 1)[-1] for r in top]),
-            chart_top_qtes=json.dumps([float(r.total_qte) for r in top]),
-            chart_sources_labels=json.dumps(list(sources.keys())),
-            chart_sources_data=json.dumps(list(sources.values())),
-        )
-
-    # ---------- Produits ----------
-    @app.route("/produits")
-    def produits():
-        return render_template("produits.html", produits=store.list_produits())
-
-    @app.route("/produits/ajouter", methods=["POST"])
-    def ajouter_produit():
-        try:
-            nom = request.form["nom"].strip()
-            prix = float(request.form["prix"])
-            stock = int(request.form["stock"])
-            if not nom or prix < 0 or stock < 0:
-                raise ValueError
-        except (KeyError, ValueError):
-            flash("Merci de renseigner un nom, un prix et un stock valides.", "error")
-            return redirect(url_for("produits"))
-
-        description = request.form.get("description", "").strip()
-        store.add_produit(nom, prix, stock, description)
-        flash(f"Produit « {nom} » ajouté.", "success")
-        return redirect(url_for("produits"))
-
-    @app.route("/produits/<int:produit_id>/modifier", methods=["GET", "POST"])
-    def modifier_produit(produit_id):
-        produit = store.get_produit(produit_id)
-        if produit is None:
-            flash("Produit introuvable.", "error")
-            return redirect(url_for("produits"))
-
-        if request.method == "POST":
-            try:
-                nom = request.form["nom"].strip()
-                prix = float(request.form["prix"])
-                stock = int(request.form["stock"])
-                if not nom or prix < 0 or stock < 0:
-                    raise ValueError
-            except (KeyError, ValueError):
-                flash("Merci de renseigner un nom, un prix et un stock valides.", "error")
-                return redirect(url_for("modifier_produit", produit_id=produit_id))
-
-            description = request.form.get("description", "").strip()
-            store.update_produit(produit_id, nom, prix, stock, description)
-            flash(f"Produit « {nom} » mis à jour.", "success")
-            return redirect(url_for("produits"))
-
-        return render_template("modifier_produit.html", produit=produit)
-
-    @app.route("/produits/<int:produit_id>/supprimer", methods=["POST"])
-    def supprimer_produit(produit_id):
-        store.delete_produit(produit_id)
-        flash("Produit supprimé.", "success")
-        return redirect(url_for("produits"))
-
-    # ---------- Clients ----------
-    @app.route("/clients")
-    def clients():
-        return render_template("clients.html", clients=store.list_clients())
-
-    @app.route("/clients/ajouter", methods=["POST"])
-    def ajouter_client():
-        nom = request.form.get("nom", "").strip()
-        if not nom:
-            flash("Le nom du client est obligatoire.", "error")
-            return redirect(url_for("clients"))
-
-        store.add_client(
-            nom,
-            request.form.get("email") or None,
-            request.form.get("telephone") or None,
-        )
-        flash(f"Client « {nom} » ajouté.", "success")
-        return redirect(url_for("clients"))
-
-    @app.route("/clients/<int:client_id>/modifier", methods=["GET", "POST"])
-    def modifier_client(client_id):
-        client = store.get_client(client_id)
-        if client is None:
-            flash("Client introuvable.", "error")
-            return redirect(url_for("clients"))
-
-        if request.method == "POST":
-            nom = request.form.get("nom", "").strip()
-            if not nom:
-                flash("Le nom du client est obligatoire.", "error")
-                return redirect(url_for("modifier_client", client_id=client_id))
-
-            store.update_client(
-                client_id,
-                nom,
-                request.form.get("email") or None,
-                request.form.get("telephone") or None,
-            )
-            flash(f"Client « {nom} » mis à jour.", "success")
-            return redirect(url_for("clients"))
-
-        return render_template("modifier_client.html", client=client)
-
-    @app.route("/clients/<int:client_id>/supprimer", methods=["POST"])
-    def supprimer_client(client_id):
-        store.delete_client(client_id)
-        flash("Client supprimé.", "success")
-        return redirect(url_for("clients"))
-
-    # ---------- Commandes (admin) ----------
-    @app.route("/commandes")
-    def commandes():
-        return render_template(
-            "commandes.html",
-            commandes=store.list_commandes(),
-            statuts=STATUTS_COMMANDE,
-        )
-
-    @app.route("/commandes/nouvelle", methods=["GET", "POST"])
-    def nouvelle_commande():
-        if request.method == "POST":
-            try:
-                client_id = int(request.form["client_id"])
-            except (KeyError, ValueError):
-                flash("Merci de choisir un client.", "error")
-                return redirect(url_for("nouvelle_commande"))
-
-            produit_ids = request.form.getlist("produit_id")
-            quantites = request.form.getlist("quantite")
-
-            lignes_demandees = []
-            for produit_id, quantite in zip(produit_ids, quantites):
-                if not produit_id or not quantite:
-                    continue
-                try:
-                    lignes_demandees.append((int(produit_id), int(quantite)))
-                except ValueError:
-                    flash("Quantité invalide.", "error")
-                    return redirect(url_for("nouvelle_commande"))
-
-            try:
-                commande = store.creer_commande(client_id, lignes_demandees)
-            except (StockInsuffisantError, ValueError) as exc:
-                flash(str(exc), "error")
-                return redirect(url_for("nouvelle_commande"))
-
-            flash(f"Commande n°{commande.id} enregistrée pour {commande.client_nom}.", "success")
-            return redirect(url_for("commandes"))
-
-        return render_template(
-            "nouvelle_commande.html",
-            clients=store.list_clients(),
-            produits=store.list_produits(),
-        )
-
-    @app.route("/commandes/<int:commande_id>/statut", methods=["POST"])
-    def mettre_a_jour_statut(commande_id):
-        nouveau_statut = request.form.get("statut", "").strip()
-        if nouveau_statut not in STATUTS_COMMANDE:
-            flash("Statut invalide.", "error")
-        else:
-            store.mettre_a_jour_statut_commande(commande_id, nouveau_statut)
-            flash(f"Statut mis à jour : {nouveau_statut}.", "success")
-        return redirect(url_for("commandes"))
-
-    @app.route("/commandes/<int:commande_id>/supprimer", methods=["POST"])
-    def supprimer_commande(commande_id):
-        store.supprimer_commande(commande_id)
-        flash("Commande supprimée, le stock a été recrédité.", "success")
-        return redirect(url_for("commandes"))
-
-    @app.route("/admin/commandes/export")
-    def export_commandes_csv():
-        output = StringIO()
-        writer = csv.writer(output)
-        writer.writerow(["ID", "Date", "Client", "Produits", "Total (MAD)", "Statut", "Source"])
-        for c in store.list_commandes():
-            produits_str = " | ".join(
-                f"{l.quantite}m² {l.produit_nom}" for l in c.lignes
-            )
-            writer.writerow([
-                c.id,
-                c.date.strftime("%d/%m/%Y %H:%M"),
-                c.client_nom,
-                produits_str,
-                f"{c.total:.2f}",
-                c.statut,
-                c.source,
-            ])
-        return Response(
-            "﻿" + output.getvalue(),  # BOM UTF-8 pour Excel
-            mimetype="text/csv; charset=utf-8",
-            headers={"Content-Disposition": "attachment; filename=commandes_ascale.csv"},
-        )
-
-    @app.route("/admin/clients/export")
-    def export_clients_csv():
-        output = StringIO()
-        writer = csv.writer(output)
-        writer.writerow(["ID", "Nom", "Email", "Téléphone", "Adresse"])
-        for c in store.list_clients():
-            writer.writerow([c.id, c.nom, c.email or "", c.telephone or "", c.adresse or ""])
-        return Response(
-            "﻿" + output.getvalue(),
-            mimetype="text/csv; charset=utf-8",
-            headers={"Content-Disposition": "attachment; filename=clients_ascale.csv"},
-        )
-
     # ---------- Chatbot ----------
     def _chatbot_repondre_et_stocker(message, mode="specialise"):
         conversation = session.get("chatbot_conversation", [])
@@ -716,47 +476,6 @@ def register_routes(app):
             return redirect(url_for("contact"))
 
         return render_template("contact.html", sujets=SUJETS_CONTACT)
-
-    # ---------- Connexion ----------
-    @app.route("/connexion", methods=["GET", "POST"])
-    def connexion():
-        if request.method == "POST":
-            email = request.form.get("email", "")
-            mot_de_passe = request.form.get("mot_de_passe", "")
-            utilisateur = store.verifier_identifiants(email, mot_de_passe)
-            if utilisateur is None:
-                flash("Email ou mot de passe incorrect.", "error")
-                return redirect(url_for("connexion", next=request.args.get("next", "")))
-
-            session["utilisateur_id"] = utilisateur.id
-            flash(f"Bienvenue, {utilisateur.nom}.", "success")
-            return redirect(request.args.get("next") or url_for("admin_reservations"))
-
-        return render_template("connexion.html")
-
-    @app.route("/deconnexion", methods=["POST"])
-    def deconnexion():
-        session.pop("utilisateur_id", None)
-        flash("Vous êtes déconnecté.", "success")
-        return redirect(url_for("index"))
-
-    # ---------- Admin réservations ----------
-    @app.route("/admin/reservations")
-    @login_required
-    def admin_reservations():
-        creneaux_par_id = {c.id: c for c in store.list_tous_creneaux()}
-        return render_template(
-            "admin_reservations.html",
-            reservations=store.list_reservations(),
-            creneaux_par_id=creneaux_par_id,
-        )
-
-    @app.route("/admin/reservations/<int:reservation_id>/annuler", methods=["POST"])
-    @login_required
-    def admin_reservation_annuler(reservation_id):
-        store.annuler_reservation(reservation_id)
-        flash("Réservation annulée, le créneau est de nouveau disponible.", "success")
-        return redirect(url_for("admin_reservations"))
 
     # ---------- Webhook WhatsApp Business ----------
     @app.route("/webhook/whatsapp", methods=["GET"])
