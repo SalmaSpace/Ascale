@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import socket
 import urllib.parse
 import urllib.request
 from io import BytesIO
@@ -9,6 +10,14 @@ from itertools import groupby
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Certains hébergeurs (dont le plan gratuit de Render) bloquent ou dégradent
+# silencieusement les connexions SMTP sortantes : la connexion reste ouverte
+# sans jamais répondre, ce qui fait dépasser le timeout du worker gunicorn
+# (SIGABRT -> 500, sans passer par le try/except de email_service.py). Un
+# timeout socket explicite fait échouer l'envoi proprement en quelques
+# secondes au lieu de bloquer toute la requête.
+socket.setdefaulttimeout(10)
 
 from flask import Flask, Response, flash, redirect, render_template, request, send_file, session, url_for
 from flask_mail import Mail
