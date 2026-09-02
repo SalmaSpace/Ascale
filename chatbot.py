@@ -31,7 +31,7 @@ _logger = logging.getLogger(__name__)
 
 # ── OpenRouter LLM (fallback quand aucun intent ne correspond) ──────────────
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
-OPENROUTER_MODEL   = os.environ.get("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct:free")
+OPENROUTER_MODEL   = os.environ.get("OPENROUTER_MODEL", "minimax/minimax-m2.7:free")
 
 _SYSTEM_PROMPT = """\
 Tu es l'assistant virtuel d'Ascale, importateur marocain de matériaux de prestige \
