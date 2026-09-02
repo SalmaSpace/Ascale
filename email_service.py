@@ -1,185 +1,196 @@
-"""Envoi de l'email de confirmation de réservation, via SMTP (Flask-Mail).
+"""Envoi des emails (réservation, facture, contact) via l'API HTTP de Brevo.
 
 Configuré uniquement par variables d'environnement (voir `.env.example`) :
-tant qu'elles ne sont pas renseignées, `mail_configuree()` retourne False et
-l'envoi est simplement ignoré (le client voit un message adapté sur la page
-de confirmation) sans jamais faire planter le parcours de réservation. Le
-SMS reste en simulation (voir templates/reservation_confirmee.html) : pas
-d'API SMS branchée pour l'instant, coût/complexité non justifiés à ce stade.
+tant que `BREVO_API_KEY` n'est pas renseignée, `mail_configuree()` retourne
+False et l'envoi est simplement ignoré (le client voit un message adapté)
+sans jamais faire planter le parcours client. Le SMS reste en simulation
+(voir templates/reservation_confirmee.html) : pas d'API SMS branchée pour
+l'instant, coût/complexité non justifiés à ce stade.
+
+Pourquoi Brevo plutôt que du SMTP direct (Gmail) : plusieurs hébergeurs
+(dont le plan gratuit de Render) bloquent ou dégradent silencieusement les
+connexions SMTP sortantes — la connexion reste ouverte sans jamais répondre
+jusqu'à ce que le serveur d'app tue la requête. L'API Brevo passe en HTTPS
+(port 443), qui n'est jamais bloqué de cette façon.
 """
 
+import base64
+import json
 import logging
 import os
+import urllib.error
+import urllib.request
 
 from flask import render_template
-from flask_mail import Message
 
 logger = logging.getLogger(__name__)
 
-MAIL_SERVER = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
-MAIL_PORT = int(os.environ.get("MAIL_PORT", "587"))
-MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "true").strip().lower() != "false"
-MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")
-MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
-MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER") or MAIL_USERNAME
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
+BREVO_SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL", "")
+BREVO_SENDER_NAME = os.environ.get("BREVO_SENDER_NAME", "Ascale Showroom")
+
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
 
 def mail_configuree() -> bool:
-    """True une fois les identifiants SMTP renseignés dans .env."""
-    return bool(MAIL_USERNAME and MAIL_PASSWORD)
+    """True une fois la clé API Brevo renseignée dans .env."""
+    return bool(BREVO_API_KEY and BREVO_SENDER_EMAIL)
 
 
-def envoyer_confirmation_reservation(mail, reservation, creneau) -> bool:
-    """Envoie l'email de confirmation à `reservation.client_email`.
+def _envoyer_brevo(to_email, to_name, subject, html_body, text_body=None, attachments=None):
+    """Appelle l'API Brevo. Retourne True si l'envoi a réussi, False sinon.
 
-    Retourne True si l'envoi a réussi, False sinon (identifiants absents ou
-    erreur SMTP) — ne lève jamais d'exception : la réservation elle-même est
-    déjà enregistrée à ce stade, un souci d'envoi ne doit pas faire échouer
-    le parcours client.
+    `attachments` : liste de tuples (nom_fichier, bytes) à joindre en pièce jointe.
+    Ne lève jamais d'exception.
     """
     if not mail_configuree():
-        logger.info("Email de confirmation non envoyé : MAIL_USERNAME/MAIL_PASSWORD absents de .env.")
         return False
 
+    payload = {
+        "sender": {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL},
+        "to": [{"email": to_email, "name": to_name or to_email}],
+        "subject": subject,
+        "htmlContent": html_body,
+    }
+    if text_body:
+        payload["textContent"] = text_body
+    if attachments:
+        payload["attachment"] = [
+            {"name": nom, "content": base64.b64encode(contenu).decode("ascii")}
+            for nom, contenu in attachments
+        ]
+
+    req = urllib.request.Request(
+        BREVO_API_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "api-key": BREVO_API_KEY,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        method="POST",
+    )
+
     try:
-        message = Message(
-            subject="Confirmation de votre visite showroom Ascale",
-            recipients=[reservation.client_email],
-            body=_corps_texte(reservation, creneau),
-            html=render_template(
-                "email_confirmation_reservation.html", reservation=reservation, creneau=creneau
-            ),
-        )
-        mail.send(message)
-        return True
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return 200 <= resp.status < 300
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        logger.warning("Brevo a refusé l'email pour %s : %s — %s", to_email, exc.code, detail)
+        return False
     except Exception:
-        logger.exception("Échec de l'envoi de l'email de confirmation pour la réservation n°%s", reservation.id)
+        logger.exception("Échec de l'envoi Brevo pour %s", to_email)
         return False
 
 
-def envoyer_contact(mail, nom, email, telephone, sujet, message, reponse_chatbot=None) -> bool:
-    """Envoie le message de contact à l'entreprise ET un accusé de réception au client.
+def envoyer_confirmation_reservation(reservation, creneau) -> bool:
+    """Envoie l'email de confirmation à `reservation.client_email`."""
+    html = render_template(
+        "email_confirmation_reservation.html", reservation=reservation, creneau=creneau
+    )
+    return _envoyer_brevo(
+        reservation.client_email,
+        reservation.client_nom,
+        "Confirmation de votre visite showroom Ascale",
+        html,
+        text_body=_corps_texte(reservation, creneau),
+    )
 
-    La réponse du chatbot est incluse dans l'accusé si elle est pertinente.
-    Ne lève jamais d'exception pour ne pas bloquer le parcours client.
-    """
-    if not mail_configuree():
-        logger.info("Email de contact non envoyé : MAIL_USERNAME/MAIL_PASSWORD absents de .env.")
-        return False
 
-    try:
-        # --- Email interne (notif à l'entreprise) ---
-        corps_interne = (
-            f"Nouveau message de contact\n"
-            f"{'=' * 40}\n"
-            f"Nom      : {nom}\n"
-            f"Email    : {email}\n"
-            f"Téléphone: {telephone or 'Non renseigné'}\n"
-            f"Sujet    : {sujet}\n"
-            f"{'=' * 40}\n\n"
-            f"{message}\n"
-        )
-        msg_interne = Message(
-            subject=f"[Ascale Contact] {sujet} — {nom}",
-            recipients=[MAIL_DEFAULT_SENDER],
-            body=corps_interne,
-            reply_to=email,
-        )
-        mail.send(msg_interne)
+def envoyer_contact(nom, email, telephone, sujet, message, reponse_chatbot=None) -> bool:
+    """Envoie le message de contact à l'entreprise ET un accusé de réception au client."""
+    corps_interne = (
+        f"Nouveau message de contact\n"
+        f"{'=' * 40}\n"
+        f"Nom      : {nom}\n"
+        f"Email    : {email}\n"
+        f"Téléphone: {telephone or 'Non renseigné'}\n"
+        f"Sujet    : {sujet}\n"
+        f"{'=' * 40}\n\n"
+        f"{message}\n"
+    )
+    ok_interne = _envoyer_brevo(
+        BREVO_SENDER_EMAIL, "Ascale",
+        f"[Ascale Contact] {sujet} — {nom}",
+        f"<pre>{corps_interne}</pre>",
+        text_body=corps_interne,
+    )
 
-        # --- Accusé de réception au client ---
-        corps_client = (
-            f"Bonjour {nom},\n\n"
-            f"Nous avons bien reçu votre message concernant : « {sujet} ».\n"
-            f"Notre équipe vous répondra dans les 24h ouvrées.\n\n"
-        )
-        if reponse_chatbot:
-            corps_client += (
-                f"En attendant, voici une réponse automatique à votre demande :\n\n"
-                f"{reponse_chatbot}\n\n"
-                f"{'─' * 40}\n\n"
-            )
+    corps_client = (
+        f"Bonjour {nom},\n\n"
+        f"Nous avons bien reçu votre message concernant : « {sujet} ».\n"
+        f"Notre équipe vous répondra dans les 24h ouvrées.\n\n"
+    )
+    if reponse_chatbot:
         corps_client += (
-            f"Votre message :\n{message}\n\n"
-            f"Cordialement,\nL'équipe Ascale\n"
-            f"📞 +212 5 22 XX XX XX | ✉️ contact@ascale.ma"
+            f"En attendant, voici une réponse automatique à votre demande :\n\n"
+            f"{reponse_chatbot}\n\n"
+            f"{'─' * 40}\n\n"
         )
-        msg_client = Message(
-            subject="Votre message a bien été reçu — Ascale",
-            recipients=[email],
-            body=corps_client,
-        )
-        mail.send(msg_client)
-        return True
+    corps_client += (
+        f"Votre message :\n{message}\n\n"
+        f"Cordialement,\nL'équipe Ascale\n"
+        f"📞 +212 5 22 XX XX XX | ✉️ contact@ascale.ma"
+    )
+    ok_client = _envoyer_brevo(
+        email, nom,
+        "Votre message a bien été reçu — Ascale",
+        f"<pre>{corps_client}</pre>",
+        text_body=corps_client,
+    )
 
-    except Exception:
-        logger.exception("Échec de l'envoi de l'email de contact pour %s", email)
-        return False
+    return ok_interne and ok_client
 
 
-def envoyer_facture_commande(mail, commande, client, pdf_bytes: bytes) -> bool:
-    """Envoie la facture PDF en pièce jointe au client + notification interne.
-
-    Ne lève jamais d'exception pour ne pas bloquer la confirmation de commande.
-    """
-    if not mail_configuree():
-        logger.info("Facture non envoyée : MAIL_USERNAME/MAIL_PASSWORD absents de .env.")
-        return False
-
+def envoyer_facture_commande(commande, client, pdf_bytes: bytes) -> bool:
+    """Envoie la facture PDF en pièce jointe au client + notification interne."""
     nom_fichier = f"facture_ascale_{commande.id:04d}.pdf"
     email_client = client.email if client else None
 
-    try:
-        # ── Email client avec facture jointe ──────────────────────
-        if email_client:
-            corps = (
-                f"Bonjour {commande.client_nom},\n\n"
-                f"Votre commande n°{commande.id} a bien été enregistrée.\n"
-                f"Veuillez trouver ci-joint votre facture pro forma.\n\n"
-                f"Récapitulatif :\n"
-            )
-            for l in commande.lignes:
-                corps += f"  • {l.quantite} m² de {l.produit_nom} — {l.sous_total:.0f} MAD\n"
-            corps += (
-                f"\nTotal : {commande.total:.0f} MAD\n\n"
-                "Notre équipe vous contactera sous 24h pour confirmer les modalités.\n"
-                "Aucun débit n'a été effectué — règlement à la confirmation.\n\n"
-                "Cordialement,\nL'équipe Ascale\n"
-                "📞 +212 5 22 XX XX XX | ✉️ contact@ascale.ma"
-            )
-            msg = Message(
-                subject=f"Votre commande Ascale n°{commande.id} — Facture pro forma",
-                recipients=[email_client],
-                body=corps,
-            )
-            msg.attach(nom_fichier, "application/pdf", pdf_bytes)
-            mail.send(msg)
+    ok_client = True
+    if email_client:
+        corps = (
+            f"Bonjour {commande.client_nom},\n\n"
+            f"Votre commande n°{commande.id} a bien été enregistrée.\n"
+            f"Veuillez trouver ci-joint votre facture pro forma.\n\n"
+            f"Récapitulatif :\n"
+        )
+        for l in commande.lignes:
+            corps += f"  • {l.quantite} m² de {l.produit_nom} — {l.sous_total:.0f} MAD\n"
+        corps += (
+            f"\nTotal : {commande.total:.0f} MAD\n\n"
+            "Notre équipe vous contactera sous 24h pour confirmer les modalités.\n"
+            "Aucun débit n'a été effectué — règlement à la confirmation.\n\n"
+            "Cordialement,\nL'équipe Ascale\n"
+            "📞 +212 5 22 XX XX XX | ✉️ contact@ascale.ma"
+        )
+        ok_client = _envoyer_brevo(
+            email_client, commande.client_nom,
+            f"Votre commande Ascale n°{commande.id} — Facture pro forma",
+            f"<pre>{corps}</pre>",
+            text_body=corps,
+            attachments=[(nom_fichier, pdf_bytes)],
+        )
 
-        # ── Notification interne ──────────────────────────────────
-        produits_str = " | ".join(
-            f"{l.quantite}m² {l.produit_nom}" for l in commande.lignes
-        )
-        corps_interne = (
-            f"Nouvelle commande publique n°{commande.id}\n"
-            f"Client : {commande.client_nom}\n"
-            f"Email  : {email_client or 'Non renseigné'}\n"
-            f"Tél.   : {client.telephone if client else 'Non renseigné'}\n"
-            f"Adresse: {client.adresse if client else 'Non renseignée'}\n"
-            f"Produits : {produits_str}\n"
-            f"Total  : {commande.total:.0f} MAD\n"
-        )
-        msg_interne = Message(
-            subject=f"[Ascale] Nouvelle commande n°{commande.id} — {commande.client_nom}",
-            recipients=[MAIL_DEFAULT_SENDER],
-            body=corps_interne,
-        )
-        msg_interne.attach(nom_fichier, "application/pdf", pdf_bytes)
-        mail.send(msg_interne)
-        return True
+    produits_str = " | ".join(f"{l.quantite}m² {l.produit_nom}" for l in commande.lignes)
+    corps_interne = (
+        f"Nouvelle commande publique n°{commande.id}\n"
+        f"Client : {commande.client_nom}\n"
+        f"Email  : {email_client or 'Non renseigné'}\n"
+        f"Tél.   : {client.telephone if client else 'Non renseigné'}\n"
+        f"Adresse: {client.adresse if client else 'Non renseignée'}\n"
+        f"Produits : {produits_str}\n"
+        f"Total  : {commande.total:.0f} MAD\n"
+    )
+    ok_interne = _envoyer_brevo(
+        BREVO_SENDER_EMAIL, "Ascale",
+        f"[Ascale] Nouvelle commande n°{commande.id} — {commande.client_nom}",
+        f"<pre>{corps_interne}</pre>",
+        text_body=corps_interne,
+        attachments=[(nom_fichier, pdf_bytes)],
+    )
 
-    except Exception:
-        logger.exception("Échec envoi facture commande n°%s", commande.id)
-        return False
+    return ok_client and ok_interne
 
 
 def _corps_texte(reservation, creneau) -> str:
