@@ -11,23 +11,23 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-## Configuration de l'envoi d'email (réservations)
+## Configuration de l'envoi d'email (réservations, factures, contact)
 
-L'email de confirmation de réservation est réellement envoyé (pas une simulation). Il faut
-renseigner un compte SMTP dans un fichier `.env` (non commité) :
+Les emails sont envoyés via l'API HTTPS de [Brevo](https://www.brevo.com) (pas de SMTP
+direct — beaucoup d'hébergeurs, dont le plan gratuit de Render, bloquent ou dégradent
+silencieusement les connexions SMTP sortantes). Il faut renseigner un compte Brevo dans
+un fichier `.env` (non commité) :
 
 ```powershell
 copy .env.example .env
 ```
 
 Puis éditer `.env` et renseigner :
-- `MAIL_USERNAME` — l'adresse email d'envoi (ex. Gmail)
-- `MAIL_PASSWORD` — un **mot de passe d'application** (pas le mot de passe du compte),
-  généré sur https://myaccount.google.com/apppasswords une fois la validation en deux
-  étapes activée sur le compte
-- `MAIL_DEFAULT_SENDER` — optionnel, reprend `MAIL_USERNAME` si laissé vide
+- `BREVO_API_KEY` — générée dans Brevo → Réglages → Clés API
+- `BREVO_SENDER_EMAIL` — adresse d'envoi, **doit être vérifiée** dans Brevo au préalable
+- `BREVO_SENDER_NAME` — optionnel, nom affiché dans le champ "De :"
 
-Tant que `MAIL_USERNAME`/`MAIL_PASSWORD` ne sont pas renseignés, l'application fonctionne
+Tant que `BREVO_API_KEY`/`BREVO_SENDER_EMAIL` ne sont pas renseignés, l'application fonctionne
 normalement mais n'envoie pas l'email (la page de confirmation l'indique clairement).
 
 ## Lancement
@@ -65,7 +65,7 @@ app.py                          # Application Flask : routes du site public
 models.py                       # Modèles de données + stockage en mémoire (Store)
 chatbot.py                      # Logique métier du chatbot (indépendante de Flask)
 whatsapp_config.py              # Préparation du branchement à la vraie API WhatsApp Business
-email_service.py                # Envoi des emails (réservation, facture, contact) — SMTP réel
+email_service.py                # Envoi des emails (réservation, facture, contact) — API Brevo
 facture_service.py              # Génération de la facture PDF (fpdf2)
 templates/
     base_public.html             # Layout du site public (nav, footer, animations au scroll)

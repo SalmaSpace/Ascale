@@ -11,16 +11,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Certains hébergeurs (dont le plan gratuit de Render) bloquent ou dégradent
-# silencieusement les connexions SMTP sortantes : la connexion reste ouverte
-# sans jamais répondre, ce qui fait dépasser le timeout du worker gunicorn
-# (SIGABRT -> 500, sans passer par le try/except de email_service.py). Un
-# timeout socket explicite fait échouer l'envoi proprement en quelques
-# secondes au lieu de bloquer toute la requête.
+# Filet de sécurité : toute connexion réseau sans timeout explicite (il ne
+# devrait plus y en avoir depuis le passage des emails à l'API Brevo, mais
+# mieux vaut prévenir) échoue proprement en 10s au lieu de bloquer la requête
+# jusqu'au timeout du worker gunicorn (SIGABRT -> 500).
 socket.setdefaulttimeout(10)
 
 from flask import Flask, Response, flash, redirect, render_template, request, send_file, session, url_for
-from flask_mail import Mail
 
 import chatbot
 import email_service
@@ -69,19 +66,11 @@ def create_app(test_config=None):
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(basedir, "ascale.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-    app.config["MAIL_SERVER"] = email_service.MAIL_SERVER
-    app.config["MAIL_PORT"] = email_service.MAIL_PORT
-    app.config["MAIL_USE_TLS"] = email_service.MAIL_USE_TLS
-    app.config["MAIL_USERNAME"] = email_service.MAIL_USERNAME
-    app.config["MAIL_PASSWORD"] = email_service.MAIL_PASSWORD
-    app.config["MAIL_DEFAULT_SENDER"] = email_service.MAIL_DEFAULT_SENDER
-
-    # Surcharge pour les tests (ex. base in-memory, mail supprimé)
+    # Surcharge pour les tests (ex. base in-memory)
     if test_config:
         app.config.update(test_config)
 
     db.init_app(app)
-    app.mail = Mail(app)
 
     app.jinja_env.filters["date_fr"] = formater_date_fr
     app.jinja_env.filters["swatch"] = classe_swatch
@@ -269,7 +258,7 @@ def register_routes(app):
             # Générer et envoyer la facture PDF
             try:
                 pdf_bytes = facture_service.generer_facture_pdf(commande, client)
-                email_service.envoyer_facture_commande(app.mail, commande, client, pdf_bytes)
+                email_service.envoyer_facture_commande(commande, client, pdf_bytes)
             except Exception:
                 pdf_bytes = None
 
@@ -416,7 +405,7 @@ def register_routes(app):
 
         creneau = store.get_creneau(reservation.creneau_id)
         reservation.email_envoye = email_service.envoyer_confirmation_reservation(
-            app.mail, reservation, creneau
+            reservation, creneau
         )
         from database import db as _db
         _db.session.commit()
@@ -468,7 +457,7 @@ def register_routes(app):
                 reponse_bot = None
 
             email_envoye = email_service.envoyer_contact(
-                app.mail, nom, email, telephone, sujet, message, reponse_bot
+                nom, email, telephone, sujet, message, reponse_bot
             )
 
             if email_envoye:

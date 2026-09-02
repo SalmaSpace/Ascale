@@ -3,6 +3,7 @@
 import pytest
 from sqlalchemy.pool import StaticPool
 
+import email_service
 from app import create_app
 
 
@@ -16,15 +17,17 @@ TEST_CONFIG = {
         "poolclass":    StaticPool,
     },
     "SQLALCHEMY_TRACK_MODIFICATIONS": False,
-    # Supprime l'envoi réel d'emails pendant les tests.
-    "MAIL_SUPPRESS_SEND": True,
     "SECRET_KEY": "test-secret",
 }
 
 
 @pytest.fixture(scope="function")
-def app():
+def app(monkeypatch):
     """Application Flask avec base SQLite in-memory fraîche pour chaque test."""
+    # Supprime l'envoi réel d'emails pendant les tests, même si un .env local
+    # avec une vraie clé Brevo est chargé (email_service lit ces constantes
+    # au niveau module, pas via app.config).
+    monkeypatch.setattr(email_service, "BREVO_API_KEY", "")
     flask_app = create_app(test_config=TEST_CONFIG)
     with flask_app.app_context():
         yield flask_app
